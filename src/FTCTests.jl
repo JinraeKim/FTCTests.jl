@@ -1,6 +1,7 @@
 module FTCTests
 
-using FaultTolerantControl
+using Reexport
+@reexport using FaultTolerantControl
 const FTC = FaultTolerantControl
 using UnPack
 using Plots
@@ -16,7 +17,7 @@ using Random
 using DifferentialEquations
 
 
-export run_sim, run_multiple_sim
+export run_sim
 
 
 include("run_sim.jl")

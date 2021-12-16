@@ -14,7 +14,7 @@ function run_sim(method, args_multicopter, multicopter, faults, fdi, θs, tf, di
     )
     pos_cmd_func = Bezier(θs; tf=tf)
     mkpath(dir_log)
-    file_path = joinpath(dir_log, "traj.jld2")
+    file_path = joinpath(dir_log, TRAJ_DATA_NAME)
     saved_data = nothing
     data_exists = isfile(file_path)
     # if !data_exists

@@ -1,0 +1,13 @@
+name = "FTCTests"
+uuid = "c7b687d4-31e6-43c2-a239-3eb9c9c8b92f"
+authors = ["JinraeKim <kjl950403@gmail.com> and contributors"]
+version = "0.1.0"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[compat]
+julia = "1"
+
+[targets]
+test = ["Test"]

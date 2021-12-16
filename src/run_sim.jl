@@ -98,9 +98,9 @@ function run_sim(method, args_multicopter, multicopter, faults, fdi, θs, tf, di
 end
 
 
-function plot_figures(multicopter, dir_log, saved_data, θs, tf)
+function plot_figures(multicopter, dir_log, saved_data)
     @unpack u_min, u_max, dim_input = multicopter
-    @unpack df, method = saved_data
+    @unpack df, method, θs, tf = saved_data
     pos_cmd_func = Bezier(θs; tf=tf)
     # data
     ts = df.time

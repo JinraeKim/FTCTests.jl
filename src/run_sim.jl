@@ -87,6 +87,8 @@ function run_sim(method, args_multicopter, multicopter, faults, fdi, θs, tf, di
         FileIO.save(file_path, Dict(
                                     "df" => df,
                                     "method" => String(method),
+                                    "tf" => tf,
+                                    "θs" => θs,
                                    ))
     # end
     saved_data = JLD2.load(file_path)

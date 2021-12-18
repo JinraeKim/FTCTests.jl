@@ -7,14 +7,16 @@ function sample(multicopter::Multicopter, min_nt, max_nt)
     (p, v, R, ω,)  # tuple; args_multicopter
 end
 
-function run_sim(method, args_multicopter, multicopter, faults, fdi, θs, tf, dir_log;
+function run_sim(method, args_multicopter, multicopter, faults, fdi::FTC.DelayFDI, θs, tf, dir_log;
         t0=0.0,
         savestep=0.01,
         will_plot=false,
     )
+    @unpack τ = fdi
     pos_cmd_func = Bezier(θs; tf=tf)
     mkpath(dir_log)
     file_path = joinpath(dir_log, TRAJ_DATA_NAME)
+    @show file_path
     saved_data = nothing
     data_exists = isfile(file_path)
     # if !data_exists
@@ -89,6 +91,8 @@ function run_sim(method, args_multicopter, multicopter, faults, fdi, θs, tf, di
                                     "method" => String(method),
                                     "tf" => tf,
                                     "θs" => θs,
+                                    "τ" => τ,
+                                    "faults" => faults,
                                    ))
     # end
     saved_data = JLD2.load(file_path)

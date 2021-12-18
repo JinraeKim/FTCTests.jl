@@ -7,12 +7,12 @@ function sample(multicopter::Multicopter, min_nt, max_nt)
     (p, v, R, ω,)  # tuple; args_multicopter
 end
 
-function run_sim(method, args_multicopter, multicopter, faults, fdi::FTC.DelayFDI, θs, tf, dir_log;
-        t0=0.0,
+function run_sim(method, args_multicopter, multicopter, faults, fdi::FTC.DelayFDI, traj_des, dir_log;
+        t0=0.0, tf=20.0,
         savestep=0.01,
         will_plot=false,
     )
-    pos_cmd_func = Bezier(θs; tf=tf)
+    pos_cmd_func(t) = traj_des(t)
     mkpath(dir_log)
     file_path = joinpath(dir_log, TRAJ_DATA_NAME)
     @show file_path
@@ -88,10 +88,11 @@ function run_sim(method, args_multicopter, multicopter, faults, fdi::FTC.DelayFD
         FileIO.save(file_path, Dict(
                                     "df" => df,
                                     "method" => String(method),
-                                    "tf" => tf,
-                                    "θs" => θs,
-                                    "fdi" => fdi,
                                     "faults" => faults,
+                                    "fdi" => fdi,
+                                    "t0" => t0,
+                                    "tf" => tf,
+                                    "traj_des" => traj_des,
                                    ))
     # end
     saved_data = JLD2.load(file_path)
@@ -104,8 +105,8 @@ end
 
 function plot_figures(multicopter, dir_log, saved_data)
     @unpack u_min, u_max, dim_input = multicopter
-    @unpack df, method, θs, tf = saved_data
-    pos_cmd_func = Bezier(θs; tf=tf)
+    @unpack df, method, traj_des = saved_data
+    pos_cmd_func(t) = traj_des(t)
     # data
     ts = df.time
     poss = df.sol |> Map(datum -> datum.plant.state.p) |> collect

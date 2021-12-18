@@ -87,14 +87,16 @@ function run_multiple_sim(N=1; collector=Transducers.tcollect, will_plot=false, 
     τs = 1:N |> Map(i -> rand([0.0, 0.1])) |> collect  # FDI delay (0.0 or 0.1s)
     θs = [[0, 0, -10.0]]  # constant position tracking
     # θs = [[0, 0, 0], [3, 4, 5], [2, 1, -3]]  # Bezier curve
-    tf = 20.0
+    t0, tf = 0.0, 20.0
+    traj_des = Bezier(θs, t0, tf)
     # run sim and save fig
     for method in [:adaptive, :adaptive2optim]
         for manoeuvre in [:hovering, :forward]
             x0s = 1:N |> Map(i -> FTCTests.sample(multicopter, distribution_info(manoeuvre)...)) |> collect
             dir_log = joinpath(joinpath(_dir_log, String(method)), String(manoeuvre))
             @time saved_data_array = zip(1:N, x0s, _faults, τs) |> MapSplat((i, x0, _fault, τ) ->
-                                                                            FTCTests.run_sim(method, x0, multicopter, FaultSet(_fault...), DelayFDI(τ), θs, tf, joinpath(dir_log, lpad(string(i), 4, '0')); will_plot=will_plot)) |> collector
+                                                                            FTCTests.run_sim(method, x0, multicopter, FaultSet(_fault...), DelayFDI(τ), traj_des, joinpath(dir_log, lpad(string(i), 4, '0'));
+                                                                                             will_plot=will_plot, t0=t0, tf=tf)) |> collector
         end
     end
     nothing

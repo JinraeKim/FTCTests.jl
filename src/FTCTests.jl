@@ -16,6 +16,9 @@ using DataFrames
 using Random
 using DifferentialEquations
 
+# privileged name, see #7
+TRAJ_DATA_NAME = "traj.jld2"
+
 
 export run_sim
 

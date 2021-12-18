@@ -12,7 +12,6 @@ function run_sim(method, args_multicopter, multicopter, faults, fdi::FTC.DelayFD
         savestep=0.01,
         will_plot=false,
     )
-    @unpack τ = fdi
     pos_cmd_func = Bezier(θs; tf=tf)
     mkpath(dir_log)
     file_path = joinpath(dir_log, TRAJ_DATA_NAME)
@@ -91,7 +90,7 @@ function run_sim(method, args_multicopter, multicopter, faults, fdi::FTC.DelayFD
                                     "method" => String(method),
                                     "tf" => tf,
                                     "θs" => θs,
-                                    "τ" => τ,
+                                    "fdi" => fdi,
                                     "faults" => faults,
                                    ))
     # end
@@ -99,6 +98,7 @@ function run_sim(method, args_multicopter, multicopter, faults, fdi::FTC.DelayFD
     if will_plot
         plot_figures(multicopter, dir_log, saved_data, θs, tf)
     end
+    saved_data
 end
 
 

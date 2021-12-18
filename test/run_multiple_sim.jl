@@ -61,42 +61,41 @@ function run_multiple_sim(N=1; collector=Transducers.tcollect, will_plot=false, 
     Random.seed!(seed)
     _dir_log = "data"
     # methods = [:adaptive, :optim, :adaptive2optim]
+    multicopter = LeeHexacopter()  # dummy
+    fault_time = 3.0
+    _fault_list_single = [[
+                          [LoE(fault_time, index, effectiveness)]
+                          for index in 1:6
+                          for effectiveness in [0.9, 0.5, 0.1, 0.0]
+                         ]...]
+    _fault_list_double = [[
+                          [LoE(fault_time, index, effectiveness),
+                           LoE(fault_time, index2, effectiveness)]
+                          for index in 1:5
+                          for index2 in index+1:6
+                          for effectiveness in [0.9, 0.5, 0.1, 0.0]
+                         ]...]
+    _fault_list_single_failure_single_fault = [[
+                                               [LoE(fault_time, index, 0.0),
+                                                LoE(fault_time, index2, effectiveness)]
+                                               for index in 1:6
+                                               for index2 in filter(x -> x != index, 1:6)
+                                               for effectiveness in [0.9, 0.5, 0.1]
+                                              ]...]
+    _fault_list = [_fault_list_single..., _fault_list_double..., _fault_list_single_failure_single_fault...]
+    _faults = 1:N |> Map(i -> rand(_fault_list)) |> collect  # randomly sampled N faults
+    τs = 1:N |> Map(i -> rand([0.0, 0.1])) |> collect  # FDI delay (0.0 or 0.1s)
+    θs = [[0, 0, -10.0]]  # constant position tracking
+    # θs = [[0, 0, 0], [3, 4, 5], [2, 1, -3]]  # Bezier curve
+    tf = 20.0
+    # run sim and save fig
     for method in [:adaptive, :adaptive2optim]
-        dir_log = joinpath(_dir_log, String(method))
-        manoeuvre = :forward
-        multicopter = LeeHexacopter()  # dummy
-        fault_time = 3.0
-        _fault_list_single = [[
-                              [LoE(fault_time, index, effectiveness)]
-                              for index in 1:6
-                              for effectiveness in [0.9, 0.5, 0.1, 0.0]
-                             ]...]
-        _fault_list_double = [[
-                              [LoE(fault_time, index, effectiveness),
-                               LoE(fault_time, index2, effectiveness)]
-                              for index in 1:5
-                              for index2 in index+1:6
-                              for effectiveness in [0.9, 0.5, 0.1, 0.0]
-                             ]...]
-        _fault_list_single_failure_single_fault = [[
-                                                   [LoE(fault_time, index, 0.0),
-                                                    LoE(fault_time, index2, effectiveness)]
-                                                   for index in 1:6
-                                                   for index2 in filter(x -> x != index, 1:6)
-                                                   for effectiveness in [0.9, 0.5, 0.1]
-                                                  ]...]
-        _fault_list = [_fault_list_single..., _fault_list_double..., _fault_list_single_failure_single_fault...]
-        _faults = 1:N |> Map(i -> rand(_fault_list)) |> collect  # randomly sampled N faults
-        τs = 1:N |> Map(i -> rand([0.0, 0.1])) |> collect  # FDI delay (0.0 or 0.1s)
-        θs = [[0, 0, -10.0]]  # constant position tracking
-        # θs = [[0, 0, 0], [3, 4, 5], [2, 1, -3]]  # Bezier curve
-        tf = 20.0
-        # run sim and save fig
-        min_nt, max_nt = distribution_info(manoeuvre)
-        x0s = 1:N |> Map(i -> FTCTests.sample(multicopter, min_nt, max_nt)) |> collect
-        @time saved_data_array = zip(1:N, x0s, _faults, τs) |> MapSplat((i, x0, _fault, τ) ->
-                                                                   FTCTests.run_sim(method, x0, multicopter, FaultSet(_fault...), DelayFDI(τ), θs, tf,
-                                                                   joinpath(dir_log, lpad(string(i), 4, '0')); will_plot=will_plot)) |> collector
+        for manoeuvre in [:hovering, :forward]
+            x0s = 1:N |> Map(i -> FTCTests.sample(multicopter, distribution_info(manoeuvre)...)) |> collect
+            dir_log = joinpath(joinpath(_dir_log, String(method)), String(manoeuvre))
+            @time saved_data_array = zip(1:N, x0s, _faults, τs) |> MapSplat((i, x0, _fault, τ) ->
+                                                                            FTCTests.run_sim(method, x0, multicopter, FaultSet(_fault...), DelayFDI(τ), θs, tf, joinpath(dir_log, lpad(string(i), 4, '0')); will_plot=will_plot)) |> collector
+        end
     end
     nothing
 end

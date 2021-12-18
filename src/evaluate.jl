@@ -7,11 +7,9 @@ function export_errors(file_path, t1::Real)
     @assert t1 < tf && t1 > t0
     filtered_df = filter(:time => t -> t >= t1, df)
     poss = filtered_df.sol |> Map(datum -> datum.plant.state.p) |> collect
-    xs = poss |> Map(pos -> pos[1]) |> collect
-    ys = poss |> Map(pos -> pos[2]) |> collect
-    zs = poss |> Map(pos -> pos[3]) |> collect
-
-    errors = sqrt.(xs.^2 + ys.^2 + zs.^2)
+    # poss_des = ...
+    # errors_pos = poss - poss_des |> Map(norm) |> collect  # you may need to `using LinearAlgebra`
+    error("WIP")  # error message for not completed works
     error_max = maximum(errors)
 end
 

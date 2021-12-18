@@ -7,18 +7,25 @@ using Random
 euler = [ψ, θ, ϕ]  # yaw, pitch, roll
 """
 function distribution_info(manoeuvre::Symbol)
-    p_min, p_max = [-1, -1, -11.0], [1, 1, -9.0]
+    p_min, p_max = nothing, nothing
     v_min, v_max = nothing, nothing
     euler_min, euler_max = nothing, nothing
     ω_min, ω_max = nothing, nothing
     if manoeuvre == :hovering
+        p_min, p_max = [-1, -1, -11.0], [1, 1, -9.0]
         v_min, v_max = [-1, -1, -1.0], [1, 1, 1.0]
         euler_min, euler_max = [deg2rad(-5), deg2rad(-5), deg2rad(-5)], [deg2rad(5), deg2rad(5), deg2rad(5)]
         ω_min, ω_max = [deg2rad(-5), deg2rad(-5), deg2rad(-5)], [deg2rad(5), deg2rad(5), deg2rad(5)]
     elseif manoeuvre == :forward
+        p_min, p_max = [-1, -1, -11.0], [1, 1, -9.0]
         v_min, v_max = [3, -1, -1.0], [7, 1, 1.0]
         euler_min, euler_max = [deg2rad(-2), deg2rad(-10), deg2rad(-2)], [deg2rad(2), deg2rad(-5), deg2rad(2)]
         ω_min, ω_max = [deg2rad(-2), deg2rad(-2), deg2rad(-2)], [deg2rad(2), deg2rad(2), deg2rad(2)]
+    elseif manoeuvre == :debug
+        p_min, p_max = [0, 0, -10.0], [0, 0, -10.0]
+        v_min, v_max = zeros(3), zeros(3)
+        euler_min, euler_max = zeros(3), zeros(3)
+        ω_min, ω_max = zeros(3), zeros(3)
     else
         error("Invalid manoeuvre")
     end
@@ -91,6 +98,7 @@ function run_multiple_sim(N=1; collector=Transducers.tcollect, will_plot=false, 
     traj_des = Bezier(θs, t0, tf)
     # run sim and save fig
     for method in [:adaptive, :adaptive2optim]
+        # for manoeuvre in [:debug]
         for manoeuvre in [:hovering, :forward]
             x0s = 1:N |> Map(i -> FTCTests.sample(multicopter, distribution_info(manoeuvre)...)) |> collect
             dir_log = joinpath(joinpath(_dir_log, String(method)), String(manoeuvre))

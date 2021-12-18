@@ -97,7 +97,7 @@ function run_sim(method, args_multicopter, multicopter, faults, fdi::FTC.DelayFD
     # end
     saved_data = JLD2.load(file_path)
     if will_plot
-        plot_figures(multicopter, dir_log, saved_data, θs, tf)
+        plot_figures(multicopter, dir_log, saved_data)
     end
     saved_data
 end

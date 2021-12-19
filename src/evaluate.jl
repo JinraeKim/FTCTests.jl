@@ -1,19 +1,23 @@
 """
-t1: calculate maximum error from `t1` to `tf`
+    export_error_max(file_path, t1::Real)
+Export maximum position error of single trajectory data (loaded from `file_path`) in time period: `t1 < t < tf`.
 """
-function export_errors(file_path, t1::Real)
-    loaded_data = JLD2.load(file_path)
-    @unpack df, method, t0, tf, traj_des = loaded_data
+function export_error_max(file_path, t1::Real)
+    data_loaded = JLD2.load(file_path)
+    @unpack df, method, t0, tf, traj_des = data_loaded
     @assert t1 < tf && t1 > t0
-    filtered_df = filter(:time => t -> t >= t1, df)
-    poss = filtered_df.sol |> Map(datum -> datum.plant.state.p) |> collect
-    poss_des = filtered_df.time |> Map(traj_des) |> collect
-    errors_pos = poss - poss_des |> Map(norm) |> collect
-    error_max = maximum(errors_pos)
-    # error("WIP")
+    df_filtered = filter(:time => t -> t >= t1, df)
+    poss = df_filtered.sol |> Map(datum -> datum.plant.state.p) |> collect
+    poss_des = df_filtered.time |> Map(traj_des) |> collect
+    errors_pos_norm = poss - poss_des |> Map(norm) |> collect
+    error_max = maximum(errors_pos_norm)
 end
 
-function evaluate(errors, threshold)
+"""
+    evaluate(errors, threshold::Real)
+Evaluate whether each error does not exceed given `threshold`.
+"""
+function evaluate(errors, threshold::Real)
     @assert threshold > 0
     mean(abs.((errors) .<= threshold))
 end

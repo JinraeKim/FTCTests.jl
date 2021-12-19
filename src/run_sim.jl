@@ -7,14 +7,15 @@ function sample(multicopter::Multicopter, min_nt, max_nt)
     (p, v, R, ω,)  # tuple; args_multicopter
 end
 
-function run_sim(method, args_multicopter, multicopter, faults, fdi::FTC.DelayFDI, traj_des, dir_log;
+function run_sim(method, args_multicopter, multicopter, faults, fdi::FTC.DelayFDI, traj_des,
+        dir_log, case_number::Int;
         t0=0.0, tf=20.0,
         savestep=0.01,
         will_plot=false,
     )
     pos_cmd_func(t) = traj_des(t)
     mkpath(dir_log)
-    file_path = joinpath(dir_log, TRAJ_DATA_NAME)
+    file_path = joinpath(dir_log, lpad(string(case_number), 4, '0') * "_" * TRAJ_DATA_NAME)
     @show file_path
     saved_data = nothing
     data_exists = isfile(file_path)

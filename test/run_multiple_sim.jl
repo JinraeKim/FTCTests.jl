@@ -1,6 +1,7 @@
 using FTCTests  # reexport FaulTolerantControl
 using Transducers
 using Random
+using Test
 
 
 """
@@ -101,9 +102,9 @@ function run_multiple_sim(N=1; collector=Transducers.tcollect, will_plot=false, 
         # for manoeuvre in [:debug]
         for manoeuvre in [:hovering, :forward]
             x0s = 1:N |> Map(i -> FTCTests.sample(multicopter, distribution_info(manoeuvre)...)) |> collect
-            dir_log = joinpath(joinpath(_dir_log, String(method)), String(manoeuvre))
+            dir_log = joinpath(joinpath(_dir_log, String(manoeuvre)), String(method))
             @time saved_data_array = zip(1:N, x0s, _faults, τs) |> MapSplat((i, x0, _fault, τ) ->
-                                                                            FTCTests.run_sim(method, x0, multicopter, FaultSet(_fault...), DelayFDI(τ), traj_des, joinpath(dir_log, lpad(string(i), 4, '0'));
+                                                                            FTCTests.run_sim(method, x0, multicopter, FaultSet(_fault...), DelayFDI(τ), traj_des, dir_log, i;
                                                                                              will_plot=will_plot, t0=t0, tf=tf)) |> collector
         end
     end

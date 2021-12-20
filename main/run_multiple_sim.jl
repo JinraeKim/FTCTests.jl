@@ -94,6 +94,7 @@ function run_multiple_sim(manoeuvre::Symbol, N=1;
                                                for effectiveness in [0.9, 0.5, 0.1]
                                               ]...]
     _fault_list = [_fault_list_single..., _fault_list_double..., _fault_list_single_failure_single_fault...]
+    _faults = 1:N |> Map(i -> rand(_fault_list)) |> collect  # randomly sampled N faults
     τs = 1:N |> Map(i -> rand([0.0, 0.1])) |> collect  # FDI delay (0.0 or 0.1s)
     θs = [[0, 0, -10.0]]  # constant position tracking
     # θs = [[0, 0, 0], [3, 4, 5], [2, 1, -3]]  # Bezier curve

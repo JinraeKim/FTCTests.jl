@@ -56,7 +56,9 @@ This is used for 2nd-year report.
 collector = collect (sequential computing)
 collector = Transducers.tcollect (parallel computing)
 """
-function run_multiple_sim(N=1; collector=Transducers.tcollect, will_plot=false, seed=2021)
+function run_multiple_sim(N=1;
+        N_thread=Threads.nthreads(),
+        collector=Transducers.tcollect, will_plot=false, seed=2021)
     println("Simulation case: $(N)")
     if collector == tcollect
         println("Parallel computing...")
@@ -91,7 +93,6 @@ function run_multiple_sim(N=1; collector=Transducers.tcollect, will_plot=false, 
                                                for effectiveness in [0.9, 0.5, 0.1]
                                               ]...]
     _fault_list = [_fault_list_single..., _fault_list_double..., _fault_list_single_failure_single_fault...]
-    _faults = 1:N |> Map(i -> rand(_fault_list)) |> collect  # randomly sampled N faults
     τs = 1:N |> Map(i -> rand([0.0, 0.1])) |> collect  # FDI delay (0.0 or 0.1s)
     θs = [[0, 0, -10.0]]  # constant position tracking
     # θs = [[0, 0, 0], [3, 4, 5], [2, 1, -3]]  # Bezier curve
@@ -103,9 +104,22 @@ function run_multiple_sim(N=1; collector=Transducers.tcollect, will_plot=false, 
         x0s = 1:N |> Map(i -> FTCTests.sample(multicopter, distribution_info(manoeuvre)...)) |> collect
         for method in [:adaptive, :adaptive2optim]
             dir_log = joinpath(joinpath(_dir_log, String(manoeuvre)), String(method))
-            @time saved_data_array = zip(1:N, x0s, _faults, τs) |> MapSplat((i, x0, _fault, τ) ->
-                                                                            FTCTests.run_sim(method, x0, multicopter, FaultSet(_fault...), DelayFDI(τ), traj_des, dir_log, i;
-                                                                                             will_plot=will_plot, t0=t0, tf=tf)) |> collector
+            x0s = 1:N |>
+            Map(i -> FTCTests.sample(multicopter, distribution_info(manoeuvre)...)) |>
+            collect
+            case_numbers_partition = 1:N |> Partition(N_thread; flush=true) |> Map(copy) |> collect
+            for case_numbers in case_numbers_partition
+                @time _ = zip(case_numbers,
+                              x0s[case_numbers],
+                              _faults[case_numbers],
+                              τs[case_numbers]) |>
+                MapSplat((i, x0, _fault, τ) -> FTCTests.run_sim(method, x0, multicopter,
+                                                                FaultSet(_fault...),
+                                                                DelayFDI(τ),
+                                                                traj_des, dir_log, i;
+                                                                will_plot=will_plot,
+                                                                t0=t0, tf=tf)) |> collector
+            end
         end
     end
     nothing

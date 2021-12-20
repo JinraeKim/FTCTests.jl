@@ -19,7 +19,7 @@ function _file_path_to_nt(file_path::String, t1, threshold)
 end
 
 
-function compute_recovery_rate(; _dir_log="data", t1=15.0, threshold=1.0)
+function compute_recovery_rate(; _dir_log="data", t1=15.0, threshold=0.1)
     df = DataFrame()
     for manoeuvre in [:hovering, :forward]
         for method in [:adaptive, :adaptive2optim]

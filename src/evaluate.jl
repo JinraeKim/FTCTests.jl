@@ -1,5 +1,6 @@
 """
     evaluate(file_path, t1::Real, threshold::Real)
+
 Evaluate whether the maximum error of trajectory data (loaded from `file_path`) does not exceed given `threshold` (check time period: `t1 < t < tf`) and export the maximum position error.
 """
 function evaluate(file_path, t1::Real, threshold::Real)

@@ -3,6 +3,7 @@ using JLD2
 using UnPack
 using DataFrames
 using Statistics
+using Transducers
 
 
 function _file_path_to_nt(file_path::String, t1, threshold)

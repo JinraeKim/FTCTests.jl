@@ -15,7 +15,6 @@ using StaticArrays: SMatrix
 using DataFrames
 using Random
 using DifferentialEquations
-using Statistics
 
 # privileged name, see #7
 TRAJ_DATA_NAME = "traj.jld2"

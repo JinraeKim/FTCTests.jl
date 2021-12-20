@@ -1,23 +1,21 @@
 using FTCTests
+using Test
+using Transducers
+using LinearAlgebra
 
 
-"""
-# Notes
-- (`manoeuvre`) :hovering, :forward, etc.
-- (`method`) :adaptive, :adaptive2optim, etc.
-"""
-function main(manoeuvre::Symbol=:hovering, method::Symbol=:adaptive; _dir_log="data")
-    println("(manoeuvre: $(manoeuvre), method: $(method))")
-    time_criterion = 15.0
-    threshold = 1.0
-    dir_log = joinpath(joinpath(_dir_log, String(manoeuvre)), String(method))
-    case_number = 1
-    file_path = joinpath(dir_log, lpad(string(case_number), 4, '0') * "_" * FTCTests.TRAJ_DATA_NAME)
-    result, error_max = FTCTests.evaluate(file_path, time_criterion, threshold)
-
-    if result == true
-        println("Success.")
-    else
-        println("Fail.")
+@testset "evaluate" begin
+    t1 = 15.0
+    N = 10
+    error_norm = 1.0
+    d = 3
+    error_poss = 1:N |> Map(i -> error_norm*(ones(d) / norm(ones(d)))) |> collect
+    for threshold in [error_norm-0.1, error_norm+0.1]
+        is_success = FTCTests.evaluate(error_poss, t1, threshold)
+        if error_norm < threshold
+            @test is_success
+        else
+            @test !is_success
+        end
     end
 end

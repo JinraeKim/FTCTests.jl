@@ -20,7 +20,7 @@ using DifferentialEquations
 TRAJ_DATA_NAME = "traj.jld2"
 
 
-export run_sim
+export run_sim, evaluate
 
 
 include("run_sim.jl")

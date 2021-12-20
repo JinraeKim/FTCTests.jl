@@ -1,11 +1,18 @@
 """
     evaluate
 
-Evaluate whether the maximum error of trajectory data does not exceed given `threshold` (check time period: `t1 < t < tf`) and export the maximum position error.
+Evaluate whether the mission is success or failure.
+
+# Notes
+jld2: a loaded dictionary from `JLD2.load`.
 """
-function evaluate(error_poss::Vector{Vector{T}} where T <: Number, t1::Real, threshold::Real)
+function evaluate(jld2::Dict, t1::Real, threshold::Real)
     @assert threshold > 0
-    error_poss_norm = error_poss |> Map(norm) |> collect
-    error_max = maximum(error_poss_norm)
+    @unpack df, traj_des, t0, tf = jld2
+    @assert t0 < t1 && t1 < tf
+    df_filtered = filter(:time => t -> t >= t1, df)
+    poss = df_filtered.sol |> Map(datum -> datum.plant.state.p) |> collect
+    poss_des = df_filtered.time |> Map(traj_des) |> collect
+    error_max = poss - poss_des |> Map(norm) |> collect |> maximum
     is_success = error_max <= threshold
 end

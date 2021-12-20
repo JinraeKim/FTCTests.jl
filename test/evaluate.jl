@@ -2,16 +2,21 @@ using FTCTests
 using Test
 using Transducers
 using LinearAlgebra
+using DataFrames
 
 
 @testset "evaluate" begin
-    t1 = 15.0
-    N = 10
-    error_norm = 1.0
+    t0, tf = 0.0, 1.0
+    ts = t0:0.01:tf
     d = 3
-    error_poss = 1:N |> Map(i -> error_norm*(ones(d) / norm(ones(d)))) |> collect
+    sol = ts |> Map(t -> (; plant= (;state = (; p=ones(d))))) |> collect
+    df = DataFrame(time=ts, sol=sol)
+    traj_des(t) = zeros(d)
+    jld2 = Dict("df" => df, "traj_des" => traj_des, "t0" => t0, "tf" => tf)
+    t1 = 0.5
+    error_norm = norm(ones(d))
     for threshold in [error_norm-0.1, error_norm+0.1]
-        is_success = FTCTests.evaluate(error_poss, t1, threshold)
+        is_success = evaluate(jld2, t1, threshold)
         if error_norm < threshold
             @test is_success
         else

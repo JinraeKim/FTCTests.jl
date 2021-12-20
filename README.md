@@ -2,7 +2,7 @@
 A package for test scripts powered by [FaultTolerantControl.jl](https://github.com/JinraeKim/FaultTolerantControl.jl).
 
 ## Notes
-- To run (parallel) simulation, see `test/run_multiple_sim.jl`.
+- To run (parallel) simulation, see `main/run_multiple_sim.jl`.
 
 
 ### Funding

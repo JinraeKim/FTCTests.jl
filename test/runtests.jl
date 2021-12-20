@@ -2,5 +2,5 @@ using FTCTests
 using Test
 
 @testset "FTCTests.jl" begin
-    # Write your tests here.
+    include("run_sim.jl")
 end

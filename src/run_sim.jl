@@ -7,8 +7,9 @@ function sample(multicopter::Multicopter, min_nt, max_nt)
     (p, v, R, ω,)  # tuple; args_multicopter
 end
 
-function run_sim(method, args_multicopter, multicopter, faults, fdi::FTC.DelayFDI, traj_des,
-        dir_log, case_number::Int;
+function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
+        faults::Array{FTC.AbstractFault}, fdi::FTC.DelayFDI, traj_des::FTC.AbstractTrajectory,
+        dir_log::String, case_number::Int;
         t0=0.0, tf=20.0,
         savestep=0.01,
         will_plot=false,

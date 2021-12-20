@@ -8,7 +8,6 @@ using FTCTests
 """
 function main(manoeuvre::Symbol=:hovering, method::Symbol=:adaptive; _dir_log="data")
     println("(manoeuvre: $(manoeuvre), method: $(method)")
-    _dir_log = "data"
     time_criterion = 15.0
     threshold = 1.0
     errors = []

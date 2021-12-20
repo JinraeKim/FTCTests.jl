@@ -1,25 +1,25 @@
 using FTCTests
+using Test
+using Transducers
+using LinearAlgebra
 
 
-"""
-# Notes
-- (`manoeuvre`) :hovering, :forward, etc.
-- (`method`) :adaptive, :adaptive2optim, etc.
-"""
-function main(manoeuvre::Symbol=:hovering, method::Symbol=:adaptive; _dir_log="data")
-    println("(manoeuvre: $(manoeuvre), method: $(method))")
-    time_criterion = 15.0
-    threshold = 1.0
-    results = []
-    dir_log = joinpath(joinpath(_dir_log, String(manoeuvre)), String(method))
-    for case_number in 1:length(readdir(dir_log))
-        file_path = joinpath(dir_log, lpad(string(case_number), 4, '0') * "_" * FTCTests.TRAJ_DATA_NAME)
-        result, error_max = FTCTests.evaluate(file_path, time_criterion, threshold)
-        push!(results, result)
-    end
-    if results[1] == true
-        println("Success.")
-    else
-        println("Fail.")
+@testset "evaluate" begin
+    manoeuvre, method = :hovering, :adaptive
+    t1 = 15.0
+    N = 10  # length
+    scale_factor = 1.0
+    d = 3
+    error_poss = 1:N |> Map(i -> scale_factor*(ones(d) / norm(ones(d)))) |> collect
+    # poss_des = 1:N |> Map(i -> scale_factor*zeros(3)) |> collect
+    for eps in [scale_factor-0.1, scale_factor+0.1]
+        # res = FTCTests.evaluate(poss, poss_des, t1, eps)
+        res = FTCTests.evaluate(error_poss, t1, eps)
+        is_success = res.is_success
+        if scale_factor < eps
+            @test is_success
+        else
+            @test !is_success
+        end
     end
 end

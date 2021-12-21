@@ -39,6 +39,7 @@ function compute_recovery_rate(; _dir_log="data", t1=15.0, threshold=0.1)
                     push!(df, (;
                                manoeuvre=manoeuvre,
                                method=method,
+                               delay=df_delay,
                                fault_kind=df_fault_kind.fault_kind[1],  # the same fault kind
                                recovery_rate=recovery_rate,
                               ))

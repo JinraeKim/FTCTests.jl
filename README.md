@@ -2,8 +2,10 @@
 A package for test scripts powered by [FaultTolerantControl.jl](https://github.com/JinraeKim/FaultTolerantControl.jl).
 
 ## For the 2nd-year report
-- To run (parallel) simulation, see `main/run_multiple_sim.jl`.
-- To compute the recovery rate, see `main/compute_recovery_rate.jl`.
+- The summary of simulation settings and results can be found in
+[FDCL-FTC Notion page](https://www.notion.so/nrfteams/2021-2-37d9c586fe4a4d37b42f0c5b6339cffd).
+    - To run (parallel) simulation, see `main/run_multiple_sim.jl`.
+    - To compute the recovery rate, see `main/compute_recovery_rate.jl`.
 
 
 ### Funding

@@ -1,8 +1,9 @@
 # FTCTests
 A package for test scripts powered by [FaultTolerantControl.jl](https://github.com/JinraeKim/FaultTolerantControl.jl).
 
-## Notes
+## For the 2nd-year report
 - To run (parallel) simulation, see `main/run_multiple_sim.jl`.
+- To compute the recovery rate, see `main/compute_recovery_rate.jl`.
 
 
 ### Funding

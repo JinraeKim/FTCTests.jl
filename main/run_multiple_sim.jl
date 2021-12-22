@@ -61,14 +61,6 @@ function run_multiple_sim(manoeuvre::Symbol, N=1;
         N_thread=Threads.nthreads(),
         will_plot=false, seed=2021)
     println("Simulation case: $(N)")
-    if collector == tcollect
-        println("Parallel computing...")
-        will_plot == true ? error("plotting figures not supported in tcollect") : nothing
-    elseif collector == collect
-        println("Sequential computing...")
-    else
-        error("Invalid collector")
-    end
     Random.seed!(seed)
     _dir_log = "data"
     _dir_log_figures = joinpath("data", "figures")

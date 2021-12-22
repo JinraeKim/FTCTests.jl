@@ -58,6 +58,8 @@ This is used for 2nd-year report.
 - manoeuvre = :hovering or :forward (:debug for debugging)
 """
 function run_multiple_sim(manoeuvre::Symbol, N=1;
+        h_threshold=5.0,  # m
+        actual_time_limit=60.0,  # s
         N_thread=Threads.nthreads(),
         collector=Transducers.tcollect, will_plot=false, seed=2021)
     println("Simulation case: $(N)")
@@ -118,7 +120,10 @@ function run_multiple_sim(manoeuvre::Symbol, N=1;
                                                             DelayFDI(τ),
                                                             traj_des, dir_log, i;
                                                             will_plot=will_plot,
-                                                            t0=t0, tf=tf)) |> collector
+                                                            t0=t0, tf=tf,
+                                                            h_threshold=h_threshold,
+                                                            actual_time_limit=actual_time_limit,
+                                                           )) |> collector
         end
     end
     nothing

@@ -73,7 +73,7 @@ function run_multiple_sim(manoeuvre::Symbol, N=1;
     _dir_log = "data"
     # methods = [:adaptive, :optim, :adaptive2optim]
     multicopter = LeeHexacopter()  # dummy
-    fault_time = 3.0
+    fault_time = 0.0
     _fault_list_single = [[
                           [LoE(fault_time, index, effectiveness)]
                           for index in 1:6

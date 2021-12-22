@@ -80,7 +80,6 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
         cb_switch = DiscreteCallback(condition, affect!)
         # termination
         function terminate_condition(X, t, integrator)
-            @show X
             @unpack p = X.plant.multicopter
             h = -p[3]  # h = -z
             h < h_threshold
@@ -88,6 +87,7 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
         simulation_success = true
         function terminate_affect!(integrator)
             simulation_success = false
+            @warn("Simulation is terminated due to the loss of height")
             terminate!(integrator)
         end
         cb_terminate = DiscreteCallback(terminate_condition, terminate_affect!)

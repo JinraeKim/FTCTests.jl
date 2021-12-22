@@ -13,6 +13,7 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
         t0=0.0, tf=20.0,
         savestep=0.01,
         will_plot=false,
+        γ=1e-4,  # adaptive gain
     )
     pos_cmd_func(t) = traj_des(t)
     mkpath(dir_log)
@@ -31,7 +32,7 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
         control_system_optim = FTC.BacksteppingControl_StaticAllocator_ControlSystem(controller, allocator)
         env_optim = FTC.DelayFDI_Plant_BacksteppingControl_StaticAllocator_ControlSystem(plant, control_system_optim)
         # adaptive allocators
-        allocator = AdaptiveAllocator(B)
+        allocator = AdaptiveAllocator(B, γ)
         control_system_adaptive = FTC.BacksteppingControl_AdaptiveAllocator_ControlSystem(controller, allocator)
         env_adaptive = FTC.DelayFDI_Plant_BacksteppingControl_AdaptiveAllocator_ControlSystem(plant, control_system_adaptive)
         p0, x0 = nothing, nothing

@@ -61,6 +61,14 @@ function run_multiple_sim(manoeuvre::Symbol, N=1;
         N_thread=Threads.nthreads(),
         will_plot=false, seed=2021)
     println("Simulation case: $(N)")
+    if collector == tcollect
+        println("Parallel computing...")
+        will_plot == true ? error("plotting figures not supported in tcollect") : nothing
+    elseif collector == collect
+        println("Sequential computing...")
+    else
+        error("Invalid collector")
+    end
     Random.seed!(seed)
     _dir_log = "data"
     _dir_log_figures = joinpath("data", "figures")
@@ -115,7 +123,9 @@ function run_multiple_sim(manoeuvre::Symbol, N=1;
                 save_sim(file_path, sim_res)
                 # plot figures
                 if will_plot
-                    plot_figures(multicopter, joinpath(dir_log, save_case_number), sim_res)
+                    dir_log_figures = joinpath(joinpath(_dir_log_figures, String(manoeuvre)), String(method), save_case_number)
+                    mkpath(dir_log_figures)
+                    plot_figures(multicopter, dir_log_figures, sim_res)
                 end
             end
             # @time _ = zip(case_numbers,

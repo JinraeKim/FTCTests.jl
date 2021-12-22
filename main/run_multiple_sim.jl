@@ -109,14 +109,14 @@ function run_multiple_sim(manoeuvre::Symbol, N=1;
         dir_log = joinpath(joinpath(_dir_log, String(manoeuvre)), String(method))
         case_numbers_partition = 1:N |> Partition(N_thread; flush=true) |> Map(copy) |> collect
         for case_numbers in case_numbers_partition
-            Threads.@threads for case_number in case_numbers
+            @time Threads.@threads for case_number in case_numbers
                 x0 = x0s[case_number]
                 _fault = _faults[case_number]
                 τ = τs[case_number]
                 save_case_number = lpad(string(case_number), 4, '0')
                 file_path = joinpath(dir_log, save_case_number * "_" * FTCTests.TRAJ_DATA_NAME)
                 @show file_path
-                @time sim_res = run_sim(method, x0, multicopter, FaultSet(_fault...),
+                sim_res = run_sim(method, x0, multicopter, FaultSet(_fault...),
                                   DelayFDI(τ), traj_des, dir_log, case_number;
                                   t0=t0, tf=tf,
                                   h_threshold=h_threshold,

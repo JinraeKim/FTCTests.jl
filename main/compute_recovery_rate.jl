@@ -42,6 +42,7 @@ function compute_recovery_rate(; _dir_log="data", t1=15.0, threshold=0.1)
                                delay=df_delay.fdi_delay[1],
                                fault_kind=df_fault_kind.fault_kind[1],  # the same fault kind
                                recovery_rate=recovery_rate,
+                               num=length(df_fault_kind.is_success)
                               ))
                 end
             end

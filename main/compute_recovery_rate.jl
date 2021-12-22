@@ -6,6 +6,11 @@ using Statistics
 using Transducers
 
 
+"""
+# Notes
+- `simulation_height_success`: once height becomes lower than a prescribed threshold, `false`. Otherwise, `true`.
+- `simulation_actual_time_success`: If a simulation time (real time) takes too long, `false`. Otherwise, `true`.
+"""
 function _file_path_to_nt(file_path::String, t1, threshold)
     jld2 = JLD2.load(file_path)
     @unpack faults, fdi, simulation_height_success, simulation_actual_time_success = jld2

@@ -80,7 +80,7 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
         end
         cb_switch = DiscreteCallback(condition, affect!)
         cbs = Any[cb_switch]
-        simulation_success = true
+        simulation_height_success = true
         # termination
         if h_threshold != nothing
             function terminate_condition(X, t, integrator)
@@ -89,13 +89,14 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
                 h < h_threshold
             end
             function terminate_affect!(integrator)
-                simulation_success = false
+                simulation_height_success = false
                 @warn("Simulation is terminated due to the loss of height")
                 terminate!(integrator)
             end
             cb_terminate = DiscreteCallback(terminate_condition, terminate_affect!)
             push!(cbs, cb_terminate)
         end
+        simulation_actual_time_success = true
         _t0 = time()
         if actual_time_limit != nothing
             @assert actual_time_limit > 0.0
@@ -104,7 +105,7 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
                 (_t - _t0) > actual_time_limit
             end
             function terminate_affect_time!(integrator)
-                simulation_success = false
+                simulation_actual_time_success = false
                 @warn("Simulation is terminated 'cause it exceeds the actual time limit of $(actual_time_limit) [s]")
                 terminate!(integrator)
             end
@@ -130,7 +131,8 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
                                     "t0" => t0,
                                     "tf" => tf,
                                     "traj_des" => traj_des,
-                                    "simulation_success" => simulation_success,
+                                    "simulation_height_success" => simulation_height_success,
+                                    "simulation_actual_time_success" => simulation_actual_time_success,
                                    ))
     # end
     saved_data = JLD2.load(file_path)

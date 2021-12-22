@@ -130,7 +130,7 @@ function run_sim(method::Symbol, args_multicopter, multicopter::FlightSims.Multi
             )
 end
 
-function save_sim(file_path, sim_res::Dict)
+function save_sim(file_path::String, sim_res::Dict)
     FileIO.save(file_path, sim_res)
     nothing
 end

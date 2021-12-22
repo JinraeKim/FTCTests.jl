@@ -59,7 +59,7 @@ This is used for 2nd-year report.
 """
 function run_multiple_sim(manoeuvre::Symbol, N=1;
         h_threshold=0.0,  # m (nothing: no constraint)
-        actual_time_limit=60.0,  # s
+        actual_time_limit=120.0,  # s
         N_thread=Threads.nthreads(),
         collector=Transducers.tcollect, will_plot=false, seed=2021)
     println("Simulation case: $(N)")

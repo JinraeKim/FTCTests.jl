@@ -8,13 +8,22 @@ using Transducers
 
 function _file_path_to_nt(file_path::String, t1, threshold)
     jld2 = JLD2.load(file_path)
-    is_success = evaluate(jld2, t1, threshold)
-    @unpack faults, fdi = jld2
+    @unpack faults, fdi, simulation_height_success, simulation_actual_time_success = jld2
+    if simulation_actual_time_success == true
+        if simulation_height_success == false
+            is_success = false
+        else
+            is_success = evaluate(jld2, t1, threshold)
+        end
+    else
+        is_success = false  # dummy value
+    end
     _nt = (;
            fault=extract_fault_property(faults),
            fault_kind=get_fault_kind(faults),
            fdi_delay=fdi.τ,
            is_success=is_success,
+           sim_time_success=simulation_actual_time_success,
           )
 end
 
@@ -29,8 +38,9 @@ function compute_recovery_rate(; _dir_log="data", t1=15.0, threshold=0.1)
             _ = file_paths |> Map(file_path ->
                                   push!(_df, _file_path_to_nt(file_path, t1, threshold))
                                  ) |> collect
+            _df_simtime = filter(:sim_time_success => t -> t == true, _df)
             # group by FDI delay
-            groups_delay = groupby(_df, :fdi_delay)
+            groups_delay = groupby(_df_simtime, :fdi_delay)
             for df_delay in groups_delay
                 # group by fault kind
                 groups_fault_kind = groupby(df_delay, :fault_kind)

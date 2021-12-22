@@ -16,7 +16,7 @@ function _file_path_to_nt(file_path::String, t1, threshold)
             is_success = evaluate(jld2, t1, threshold)
         end
     else
-        is_success = false  # dummy value
+        is_success = missing  # not considered as either true or false
     end
     _nt = (;
            fault=extract_fault_property(faults),

@@ -13,6 +13,7 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
         t0=0.0, tf=20.0,
         savestep=0.01,
         will_plot=false,
+        h_threshold=5.0,
     )
     pos_cmd_func(t) = traj_des(t)
     mkpath(dir_log)
@@ -77,7 +78,20 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
             end
         end
         cb_switch = DiscreteCallback(condition, affect!)
-        cb = CallbackSet(cb_switch)
+        # termination
+        function terminate_condition(X, t, integrator)
+            @show X
+            @unpack p = X.plant.multicopter
+            h = -p[3]  # h = -z
+            h < h_threshold
+        end
+        simulation_success = true
+        function terminate_affect!(integrator)
+            simulation_success = false
+            terminate!(integrator)
+        end
+        cb_terminate = DiscreteCallback(terminate_condition, terminate_affect!)
+        cb = CallbackSet(cb_switch, cb_terminate)
         # sim
         simulator = Simulator(
                               x0, dynamics!, p0;
@@ -95,6 +109,7 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
                                     "t0" => t0,
                                     "tf" => tf,
                                     "traj_des" => traj_des,
+                                    "simulation_success" => simulation_success,
                                    ))
     # end
     saved_data = JLD2.load(file_path)

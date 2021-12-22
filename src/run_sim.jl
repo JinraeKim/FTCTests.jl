@@ -13,7 +13,8 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
         t0=0.0, tf=20.0,
         savestep=0.01,
         will_plot=false,
-        h_threshold=5.0,
+        h_threshold=nothing,
+        actual_time_limit=nothing,
     )
     pos_cmd_func(t) = traj_des(t)
     mkpath(dir_log)
@@ -78,29 +79,49 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
             end
         end
         cb_switch = DiscreteCallback(condition, affect!)
-        # termination
-        function terminate_condition(X, t, integrator)
-            @unpack p = X.plant.multicopter
-            h = -p[3]  # h = -z
-            h < h_threshold
-        end
+        cbs = Any[cb_switch]
         simulation_success = true
-        function terminate_affect!(integrator)
-            simulation_success = false
-            @warn("Simulation is terminated due to the loss of height")
-            terminate!(integrator)
+        # termination
+        if h_threshold != nothing
+            function terminate_condition(X, t, integrator)
+                @unpack p = X.plant.multicopter
+                h = -p[3]  # h = -z
+                h < h_threshold
+            end
+            function terminate_affect!(integrator)
+                simulation_success = false
+                @warn("Simulation is terminated due to the loss of height")
+                terminate!(integrator)
+            end
+            cb_terminate = DiscreteCallback(terminate_condition, terminate_affect!)
+            push!(cbs, cb_terminate)
         end
-        cb_terminate = DiscreteCallback(terminate_condition, terminate_affect!)
-        cb = CallbackSet(cb_switch, cb_terminate)
+        _t0 = time()
+        if actual_time_limit != nothing
+            @assert actual_time_limit > 0.0
+            function terminate_condition_time(X, t, integrator)
+                _t = time()
+                (_t - _t0) > actual_time_limit
+            end
+            function terminate_affect_time!(integrator)
+                simulation_success = false
+                @warn("Simulation is terminated 'cause it exceeds the actual time limit of $(actual_time_limit) [s]")
+                terminate!(integrator)
+            end
+            cb_terminate_time = DiscreteCallback(terminate_condition_time, terminate_affect_time!)
+            push!(cbs, cb_terminate_time)
+        end
+        cb = CallbackSet(cbs...)
         # sim
         simulator = Simulator(
                               x0, dynamics!, p0;
                               t0=t0, tf=tf,
                              )
+        # TODO: time exceed should be in `solve` for properly measuring elapsed time
         df = solve(simulator;
-                         savestep=savestep,
-                         callback=cb,
-                        )
+                   savestep=savestep,
+                   callback=cb,
+                  )
         FileIO.save(file_path, Dict(
                                     "df" => df,
                                     "method" => String(method),
@@ -381,4 +402,5 @@ function plot_figures(multicopter, dir_log, saved_data)
            label="ψ (deg)",
           )
      savefig(p_euler, joinpath(dir_log, "euler.pdf"))
+     savefig(p_euler, joinpath(dir_log, "euler.png"))
 end

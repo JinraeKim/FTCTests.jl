@@ -1,3 +1,6 @@
+using Test
+
+
 @testset "run_sim" begin
     dir_log = "__data__"
     case_number = 1
@@ -13,5 +16,5 @@
     θs = [[0, 0, 0.0]]  # constant position tracking
     traj_des = Bezier(θs, t0, tf)
     run_sim(method, args_multicopter, multicopter, fault, fdi, traj_des, dir_log, case_number;
-            t0=t0, tf=tf, savestep=0.01, will_plot=true,)
+            t0=t0, tf=tf, savestep=0.01, will_plot=true)
 end

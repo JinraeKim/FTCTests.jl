@@ -73,6 +73,7 @@ function run_multiple_sim(manoeuvre::Symbol, N=1;
     end
     Random.seed!(seed)
     _dir_log = "data"
+    _dir_log_figures = joinpath("data", "figures")
     # methods = [:adaptive, :optim, :adaptive2optim]
     multicopter = LeeHexacopter()  # dummy
     fault_time = 0.0
@@ -108,19 +109,38 @@ function run_multiple_sim(manoeuvre::Symbol, N=1;
         dir_log = joinpath(joinpath(_dir_log, String(manoeuvre)), String(method))
         case_numbers_partition = 1:N |> Partition(N_thread; flush=true) |> Map(copy) |> collect
         for case_numbers in case_numbers_partition
-            @time _ = zip(case_numbers,
-                          x0s[case_numbers],
-                          _faults[case_numbers],
-                          τs[case_numbers]) |>
-            MapSplat((i, x0, _fault, τ) -> FTCTests.run_sim(method, x0, multicopter,
-                                                            FaultSet(_fault...),
-                                                            DelayFDI(τ),
-                                                            traj_des, dir_log, i;
-                                                            will_plot=will_plot,
-                                                            t0=t0, tf=tf,
-                                                            h_threshold=h_threshold,
-                                                            actual_time_limit=actual_time_limit,
-                                                           )) |> collector
+            Threads.@threads for case_number in case_numbers
+                x0 = x0s[case_number]
+                _fault = _faults[case_number]
+                τ = τs[case_number]
+                save_case_number = lpad(string(case_number), 4, '0')
+                file_path = joinpath(dir_log, save_case_number * "_" * FTCTests.TRAJ_DATA_NAME)
+                @show file_path
+                @time sim_res = run_sim(method, x0, multicopter, FaultSet(_fault...),
+                                  DelayFDI(τ), traj_des, dir_log, case_number;
+                                  t0=t0, tf=tf,
+                                  h_threshold=h_threshold,
+                                  actual_time_limit=actual_time_limit,)
+                # save data
+                save_sim(file_path, sim_res)
+                # plot figures
+                if will_plot
+                    plot_figures(multicopter, joinpath(dir_log, save_case_number), sim_res)
+                end
+            end
+            # @time _ = zip(case_numbers,
+            #               x0s[case_numbers],
+            #               _faults[case_numbers],
+            #               τs[case_numbers]) |>
+            # MapSplat((i, x0, _fault, τ) -> FTCTests.run_sim(method, x0, multicopter,
+            #                                                 FaultSet(_fault...),
+            #                                                 DelayFDI(τ),
+            #                                                 traj_des, dir_log, i;
+            #                                                 will_plot=will_plot,
+            #                                                 t0=t0, tf=tf,
+            #                                                 h_threshold=h_threshold,
+            #                                                 actual_time_limit=actual_time_limit,
+            #                                                )) |> collector
         end
     end
     nothing

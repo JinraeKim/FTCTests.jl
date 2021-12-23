@@ -57,7 +57,7 @@ This is used for 2nd-year report.
 - collector = Transducers.tcollect (parallel computing)
 - manoeuvre = :hovering or :forward (:debug for debugging)
 """
-function run_multiple_sim(manoeuvre::Symbol, N=1;
+function run_multiple_sim(N=1;
         h_threshold=5.0,  # m (nothing: no constraint)
         actual_time_limit=60.0,  # s
         N_thread=Threads.nthreads(),
@@ -103,24 +103,26 @@ function run_multiple_sim(manoeuvre::Symbol, N=1;
     t0, tf = 0.0, 20.0
     traj_des = Bezier(θs, t0, tf)
     # run sim and save fig
-    x0s = 1:N |> Map(i -> FTCTests.sample(multicopter, distribution_info(manoeuvre)...)) |> collect
-    for method in [:adaptive, :adaptive2optim]
-        dir_log = joinpath(joinpath(_dir_log, String(manoeuvre)), String(method))
-        case_numbers_partition = 1:N |> Partition(N_thread; flush=true) |> Map(copy) |> collect
-        for case_numbers in case_numbers_partition
-            @time _ = zip(case_numbers,
-                          x0s[case_numbers],
-                          _faults[case_numbers],
-                          τs[case_numbers]) |>
-            MapSplat((i, x0, _fault, τ) -> FTCTests.run_sim(method, x0, multicopter,
-                                                            FaultSet(_fault...),
-                                                            DelayFDI(τ),
-                                                            traj_des, dir_log, i;
-                                                            will_plot=will_plot,
-                                                            t0=t0, tf=tf,
-                                                            h_threshold=h_threshold,
-                                                            actual_time_limit=actual_time_limit,
-                                                           )) |> collector
+    for manoeuvre in [:hovering, :forward]
+        x0s = 1:N |> Map(i -> FTCTests.sample(multicopter, distribution_info(manoeuvre)...)) |> collect
+        for method in [:adaptive, :adaptive2optim]
+            dir_log = joinpath(joinpath(_dir_log, String(manoeuvre)), String(method))
+            case_numbers_partition = 1:N |> Partition(N_thread; flush=true) |> Map(copy) |> collect
+            for case_numbers in case_numbers_partition
+                @time _ = zip(case_numbers,
+                            x0s[case_numbers],
+                            _faults[case_numbers],
+                            τs[case_numbers]) |>
+                MapSplat((i, x0, _fault, τ) -> FTCTests.run_sim(method, x0, multicopter,
+                                                                FaultSet(_fault...),
+                                                                DelayFDI(τ),
+                                                                traj_des, dir_log, i;
+                                                                will_plot=will_plot,
+                                                                t0=t0, tf=tf,
+                                                                h_threshold=h_threshold,
+                                                                actual_time_limit=actual_time_limit,
+                                                            )) |> collector
+            end
         end
     end
     nothing

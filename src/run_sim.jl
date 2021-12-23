@@ -130,12 +130,6 @@ function run_sim(method::Symbol, args_multicopter, multicopter::FlightSims.Multi
             )
 end
 
-function save_sim(file_path::String, sim_res::Dict)
-    FileIO.save(file_path, sim_res)
-    nothing
-end
-
-
 function plot_figures(multicopter::Multicopter, dir_log::String, sim_res::Dict)
     @unpack u_min, u_max, dim_input = multicopter
     @unpack df, method, traj_des = sim_res

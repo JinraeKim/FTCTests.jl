@@ -2,6 +2,7 @@ using FTCTests  # reexport FaulTolerantControl
 using Transducers
 using Random
 using Test
+using FileIO
 
 
 """
@@ -57,17 +58,15 @@ This is used for 2nd-year report.
 """
 function run_multiple_sim(manoeuvre::Symbol, N=1;
         h_threshold=5.0,  # m (nothing: no constraint)
-        actual_time_limit=60.0,  # s
+        actual_time_limit=90.0,  # s
         N_thread=Threads.nthreads(),
         will_plot=false, seed=2021)
     println("Simulation case: $(N)")
-    if collector == tcollect
+    if N_thread > 1
         println("Parallel computing...")
-        will_plot == true ? error("plotting figures not supported in tcollect") : nothing
-    elseif collector == collect
-        println("Sequential computing...")
+        will_plot == true ? error("plotting figures not supported in multi-threading") : nothing
     else
-        error("Invalid collector")
+        println("Sequential computing...")
     end
     Random.seed!(seed)
     _dir_log = "data"
@@ -120,7 +119,7 @@ function run_multiple_sim(manoeuvre::Symbol, N=1;
                                   h_threshold=h_threshold,
                                   actual_time_limit=actual_time_limit,)
                 # save data
-                save_sim(file_path, sim_res)
+                FileIO.save(file_path, sim_res)
                 # plot figures
                 if will_plot
                     dir_log_figures = joinpath(joinpath(_dir_log_figures, String(manoeuvre)), String(method), save_case_number)
@@ -128,19 +127,6 @@ function run_multiple_sim(manoeuvre::Symbol, N=1;
                     plot_figures(multicopter, dir_log_figures, sim_res)
                 end
             end
-            # @time _ = zip(case_numbers,
-            #               x0s[case_numbers],
-            #               _faults[case_numbers],
-            #               τs[case_numbers]) |>
-            # MapSplat((i, x0, _fault, τ) -> FTCTests.run_sim(method, x0, multicopter,
-            #                                                 FaultSet(_fault...),
-            #                                                 DelayFDI(τ),
-            #                                                 traj_des, dir_log, i;
-            #                                                 will_plot=will_plot,
-            #                                                 t0=t0, tf=tf,
-            #                                                 h_threshold=h_threshold,
-            #                                                 actual_time_limit=actual_time_limit,
-            #                                                )) |> collector
         end
     end
     nothing

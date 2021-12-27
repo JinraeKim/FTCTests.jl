@@ -108,7 +108,7 @@ function run_multiple_sim(N=1;
         x0s = 1:N |> Map(i -> FTCTests.sample(multicopter, distribution_info(manoeuvre)...)) |> collect
         for method in [:adaptive, :adaptive2optim]
             dir_log = joinpath(joinpath(_dir_log, String(manoeuvre)), String(method))
-            if method == :adaptive
+            if method == :adaptive  # method `:adaptive` does not require FDI information; not affected by FDI delay time constant `τ`.
                 τs = [0.0]
             elseif method == :adaptive2optim
                 τs = [0.0, 0.1]

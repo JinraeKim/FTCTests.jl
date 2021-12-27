@@ -99,7 +99,6 @@ function run_multiple_sim(N=1;
                                               ]...]
     _fault_list = [_fault_list_single..., _fault_list_double..., _fault_list_single_failure_single_fault...]
     _faults = 1:N |> Map(i -> rand(_fault_list)) |> collect  # randomly sampled N faults
-    τs = 1:N |> Map(i -> rand([0.0, 0.1])) |> collect  # FDI delay (0.0 or 0.1s)
     θs = [[0, 0, -10.0]]  # constant position tracking
     # θs = [[0, 0, 0], [3, 4, 5], [2, 1, -3]]  # Bezier curve
     t0, tf = 0.0, 20.0
@@ -109,21 +108,29 @@ function run_multiple_sim(N=1;
         x0s = 1:N |> Map(i -> FTCTests.sample(multicopter, distribution_info(manoeuvre)...)) |> collect
         for method in [:adaptive, :adaptive2optim]
             dir_log = joinpath(joinpath(_dir_log, String(manoeuvre)), String(method))
-            case_numbers_partition = 1:N |> Partition(N_thread; flush=true) |> Map(copy) |> collect
-            for case_numbers in case_numbers_partition
-                @time _ = zip(case_numbers,
-                            x0s[case_numbers],
-                            _faults[case_numbers],
-                            τs[case_numbers]) |>
-                MapSplat((i, x0, _fault, τ) -> FTCTests.run_sim(method, x0, multicopter,
-                                                                FaultSet(_fault...),
-                                                                DelayFDI(τ),
-                                                                traj_des, dir_log, i;
-                                                                will_plot=will_plot,
-                                                                t0=t0, tf=tf,
-                                                                h_threshold=h_threshold,
-                                                                actual_time_limit=actual_time_limit,
-                                                            )) |> collector
+            if method == :adaptive  # method `:adaptive` does not require FDI information; not affected by FDI delay time constant `τ`.
+                τs = [0.0]
+            elseif method == :adaptive2optim
+                τs = [0.0, 0.1]
+            else
+                error("Invalid method")
+            end
+            for τ in τs
+                case_numbers_partition = 1:N |> Partition(N_thread; flush=true) |> Map(copy) |> collect
+                for case_numbers in case_numbers_partition
+                    @time _ = zip(case_numbers,
+                                x0s[case_numbers],
+                                _faults[case_numbers]) |>
+                    MapSplat((i, x0, _fault) -> FTCTests.run_sim(method, x0, multicopter,
+                                                                    FaultSet(_fault...),
+                                                                    DelayFDI(τ),
+                                                                    traj_des, dir_log, i;
+                                                                    will_plot=will_plot,
+                                                                    t0=t0, tf=tf,
+                                                                    h_threshold=h_threshold,
+                                                                    actual_time_limit=actual_time_limit,
+                                                                )) |> collector
+                end
             end
         end
     end

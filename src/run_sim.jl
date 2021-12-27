@@ -18,7 +18,7 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
     )
     pos_cmd_func(t) = traj_des(t)
     mkpath(dir_log)
-    file_path = joinpath(dir_log, lpad(string(case_number), 4, '0') * "_τ_" * string(10*fdi.τ) * "_" * TRAJ_DATA_NAME)
+    file_path = joinpath(dir_log, lpad(string(case_number), 4, '0') * "_τ_" * replace(string(fdi.τ), "." => "_") * "_" * TRAJ_DATA_NAME)
     @show file_path
     saved_data = nothing
     data_exists = isfile(file_path)

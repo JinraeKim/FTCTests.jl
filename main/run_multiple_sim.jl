@@ -56,6 +56,7 @@ This is used for 2nd-year report.
 - collector = collect (sequential computing)
 - collector = Transducers.tcollect (parallel computing)
 - manoeuvre = :hovering or :forward (:debug for debugging)
+- `manoeuvres` is an array of manoeuvres.
 """
 function run_multiple_sim(N=1;
         manoeuvres=[:hovering, :forward],

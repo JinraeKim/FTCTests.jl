@@ -2,6 +2,7 @@ using FTCTests  # reexport FaulTolerantControl
 using Transducers
 using Random
 using Test
+using FileIO
 
 
 """
@@ -53,26 +54,23 @@ A function for running multiple simulation.
 This is used for 2nd-year report.
 
 # Notes
-- collector = collect (sequential computing)
-- collector = Transducers.tcollect (parallel computing)
 - manoeuvre = :hovering or :forward (:debug for debugging)
 """
 function run_multiple_sim(manoeuvre::Symbol, N=1;
         h_threshold=5.0,  # m (nothing: no constraint)
-        actual_time_limit=60.0,  # s
+        actual_time_limit=90.0,  # s
         N_thread=Threads.nthreads(),
-        collector=Transducers.tcollect, will_plot=false, seed=2021)
+        will_plot=false, seed=2021)
     println("Simulation case: $(N)")
-    if collector == tcollect
+    if N_thread > 1
         println("Parallel computing...")
-        will_plot == true ? error("plotting figures not supported in tcollect") : nothing
-    elseif collector == collect
-        println("Sequential computing...")
+        will_plot == true ? error("plotting figures not supported in multi-threading") : nothing
     else
-        error("Invalid collector")
+        println("Sequential computing...")
     end
     Random.seed!(seed)
     _dir_log = "data"
+    _dir_log_figures = joinpath("data", "figures")
     # methods = [:adaptive, :optim, :adaptive2optim]
     multicopter = LeeHexacopter()  # dummy
     fault_time = 0.0
@@ -108,19 +106,27 @@ function run_multiple_sim(manoeuvre::Symbol, N=1;
         dir_log = joinpath(joinpath(_dir_log, String(manoeuvre)), String(method))
         case_numbers_partition = 1:N |> Partition(N_thread; flush=true) |> Map(copy) |> collect
         for case_numbers in case_numbers_partition
-            @time _ = zip(case_numbers,
-                          x0s[case_numbers],
-                          _faults[case_numbers],
-                          τs[case_numbers]) |>
-            MapSplat((i, x0, _fault, τ) -> FTCTests.run_sim(method, x0, multicopter,
-                                                            FaultSet(_fault...),
-                                                            DelayFDI(τ),
-                                                            traj_des, dir_log, i;
-                                                            will_plot=will_plot,
-                                                            t0=t0, tf=tf,
-                                                            h_threshold=h_threshold,
-                                                            actual_time_limit=actual_time_limit,
-                                                           )) |> collector
+            @time Threads.@threads for case_number in case_numbers
+                x0 = x0s[case_number]
+                _fault = _faults[case_number]
+                τ = τs[case_number]
+                save_case_number = lpad(string(case_number), 4, '0')
+                file_path = joinpath(dir_log, save_case_number * "_" * FTCTests.TRAJ_DATA_NAME)
+                @show file_path
+                sim_res = run_sim(method, x0, multicopter, FaultSet(_fault...),
+                                  DelayFDI(τ), traj_des, dir_log, case_number;
+                                  t0=t0, tf=tf,
+                                  h_threshold=h_threshold,
+                                  actual_time_limit=actual_time_limit,)
+                # save data
+                FileIO.save(file_path, sim_res)
+                # plot figures
+                if will_plot
+                    dir_log_figures = joinpath(joinpath(_dir_log_figures, String(manoeuvre)), String(method), save_case_number)
+                    mkpath(dir_log_figures)
+                    plot_figures(multicopter, dir_log_figures, sim_res)
+                end
+            end
         end
     end
     nothing

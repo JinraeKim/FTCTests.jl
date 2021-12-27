@@ -7,65 +7,59 @@ function sample(multicopter::Multicopter, min_nt, max_nt)
     (p, v, R, ω,)  # tuple; args_multicopter
 end
 
-function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
+function run_sim(method::Symbol, args_multicopter, multicopter::FlightSims.Multicopter,
         faults::Array{FTC.AbstractFault}, fdi::FTC.DelayFDI, traj_des::FTC.AbstractTrajectory,
         dir_log::String, case_number::Int;
         t0=0.0, tf=20.0,
         savestep=0.01,
-        will_plot=false,
         h_threshold=nothing,
         actual_time_limit=nothing,
     )
     pos_cmd_func(t) = traj_des(t)
     mkpath(dir_log)
-    file_path = joinpath(dir_log, lpad(string(case_number), 4, '0') * "_" * TRAJ_DATA_NAME)
-    @show file_path
-    saved_data = nothing
-    data_exists = isfile(file_path)
-    # if !data_exists
-        @unpack m, B, u_min, u_max, dim_input = multicopter
-        plant = FTC.DelayFDI_Plant(multicopter, fdi, faults)
-        @unpack multicopter = plant
-        controller = BacksteppingPositionController(m; pos_cmd_func=pos_cmd_func)
-        # optimisation-based allocators
-        allocator = PseudoInverseAllocator(B)  # deprecated; it does not work when failures occur. I guess it's due to Moore-Penrose pseudo inverse.
-        allocator = ConstrainedAllocator(B, u_min, u_max)
-        control_system_optim = FTC.BacksteppingControl_StaticAllocator_ControlSystem(controller, allocator)
-        env_optim = FTC.DelayFDI_Plant_BacksteppingControl_StaticAllocator_ControlSystem(plant, control_system_optim)
-        # adaptive allocators
-        allocator = AdaptiveAllocator(B)
-        control_system_adaptive = FTC.BacksteppingControl_AdaptiveAllocator_ControlSystem(controller, allocator)
-        env_adaptive = FTC.DelayFDI_Plant_BacksteppingControl_AdaptiveAllocator_ControlSystem(plant, control_system_adaptive)
-        p0, x0 = nothing, nothing
-        if method == :adaptive || method == :adaptive2optim
-            p0 = :adaptive
-            x0 = State(env_adaptive)(; args_multicopter=args_multicopter)  # start with adaptive CA
-        elseif method == :optim
-            p0 = :optim
-            x0 = State(env_optim)(; args_multicopter=args_multicopter)  # start with optim CA
+    @unpack m, B, u_min, u_max, dim_input = multicopter
+    plant = FTC.DelayFDI_Plant(multicopter, fdi, faults)
+    @unpack multicopter = plant
+    controller = BacksteppingPositionController(m; pos_cmd_func=pos_cmd_func)
+    # optimisation-based allocators
+    allocator = PseudoInverseAllocator(B)  # deprecated; it does not work when failures occur. I guess it's due to Moore-Penrose pseudo inverse.
+    allocator = ConstrainedAllocator(B, u_min, u_max)
+    control_system_optim = FTC.BacksteppingControl_StaticAllocator_ControlSystem(controller, allocator)
+    env_optim = FTC.DelayFDI_Plant_BacksteppingControl_StaticAllocator_ControlSystem(plant, control_system_optim)
+    # adaptive allocators
+    allocator = AdaptiveAllocator(B)
+    control_system_adaptive = FTC.BacksteppingControl_AdaptiveAllocator_ControlSystem(controller, allocator)
+    env_adaptive = FTC.DelayFDI_Plant_BacksteppingControl_AdaptiveAllocator_ControlSystem(plant, control_system_adaptive)
+    p0, x0 = nothing, nothing
+    if method == :adaptive || method == :adaptive2optim
+        p0 = :adaptive
+        x0 = State(env_adaptive)(; args_multicopter=args_multicopter)  # start with adaptive CA
+    elseif method == :optim
+        p0 = :optim
+        x0 = State(env_optim)(; args_multicopter=args_multicopter)  # start with optim CA
+    else
+        error("Invalid method")
+    end
+    @Loggable function dynamics!(dx, x, p, t)
+        @log method = p
+        if p == :adaptive
+            @nested_log Dynamics!(env_adaptive)(dx, x, p, t)
+        elseif p == :optim
+            @nested_log Dynamics!(env_optim)(dx, x, p, t)
         else
             error("Invalid method")
         end
-        @Loggable function dynamics!(dx, x, p, t)
-            @log method = p
-            if p == :adaptive
-                @nested_log Dynamics!(env_adaptive)(dx, x, p, t)
-            elseif p == :optim
-                @nested_log Dynamics!(env_optim)(dx, x, p, t)
-            else
-                error("Invalid method")
-            end
-        end
-        # callback; TODO: a fancy way of utilising callbacks like SimulationLogger.jl...?
-        __log_indicator__ = __LOG_INDICATOR__()
-        affect! = (integrator) -> error("Invalid method")
-        if method == :adaptive2optim
-            affect! = (integrator) -> integrator.p = :optim
-        elseif method == :adaptive || method == :optim
-            affect! = (integrator) -> nothing
-        end
-        condition = function (x, t, integrator)
-            p = integrator.p
+    end
+    # callback; TODO: a fancy way of utilising callbacks like SimulationLogger.jl...?
+    __log_indicator__ = __LOG_INDICATOR__()
+    affect! = (integrator) -> error("Invalid method")
+    if method == :adaptive2optim
+        affect! = (integrator) -> integrator.p = :optim
+    elseif method == :adaptive || method == :optim
+        affect! = (integrator) -> nothing
+    end
+    condition = function (x, t, integrator)
+        p = integrator.p
             if p == :adaptive
                 x = copy(x)
                 dict = Dynamics!(env_adaptive)(zero.(x), x, p, t, __log_indicator__)
@@ -123,29 +117,22 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
                    savestep=savestep,
                    callback=cb,
                   )
-        FileIO.save(file_path, Dict(
-                                    "df" => df,
-                                    "method" => String(method),
-                                    "faults" => faults,
-                                    "fdi" => fdi,
-                                    "t0" => t0,
-                                    "tf" => tf,
-                                    "traj_des" => traj_des,
-                                    "simulation_height_success" => simulation_height_success,
-                                    "simulation_actual_time_success" => simulation_actual_time_success,
-                                   ))
-    # end
-    saved_data = JLD2.load(file_path)
-    if will_plot
-        plot_figures(multicopter, dir_log, saved_data)
-    end
-    saved_data
+        Dict(
+             "df" => df,
+             "method" => String(method),
+             "faults" => faults,
+             "fdi" => fdi,
+             "t0" => t0,
+             "tf" => tf,
+             "traj_des" => traj_des,
+             "simulation_height_success" => simulation_height_success,
+             "simulation_actual_time_success" => simulation_actual_time_success,
+            )
 end
 
-
-function plot_figures(multicopter, dir_log, saved_data)
+function plot_figures(multicopter::Multicopter, dir_log::String, sim_res::Dict)
     @unpack u_min, u_max, dim_input = multicopter
-    @unpack df, method, traj_des = saved_data
+    @unpack df, method, traj_des = sim_res
     pos_cmd_func(t) = traj_des(t)
     # data
     ts = df.time

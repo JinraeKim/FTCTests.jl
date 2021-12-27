@@ -20,7 +20,8 @@ using DifferentialEquations
 TRAJ_DATA_NAME = "traj.jld2"
 
 
-export run_sim, evaluate, extract_fault_property, get_fault_kind
+export run_sim, save_sim, plot_figures
+export evaluate, extract_fault_property, get_fault_kind
 
 
 include("run_sim.jl")

@@ -57,7 +57,7 @@ This is used for 2nd-year report.
 - collector = Transducers.tcollect (parallel computing)
 - manoeuvre = :hovering or :forward (:debug for debugging)
 """
-function run_multiple_sim(N=1;
+function run_multiple_sim(manoeuvres::Array, N=1;
         h_threshold=5.0,  # m (nothing: no constraint)
         actual_time_limit=60.0,  # s
         N_thread=Threads.nthreads(),
@@ -103,7 +103,7 @@ function run_multiple_sim(N=1;
     t0, tf = 0.0, 20.0
     traj_des = Bezier(θs, t0, tf)
     # run sim and save fig
-    for manoeuvre in [:hovering, :forward]
+    for manoeuvre in manoeuvres
         x0s = 1:N |> Map(i -> FTCTests.sample(multicopter, distribution_info(manoeuvre)...)) |> collect
         for method in [:adaptive, :adaptive2optim]
             dir_log = joinpath(joinpath(_dir_log, String(manoeuvre)), String(method))

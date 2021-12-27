@@ -59,7 +59,7 @@ This is used for 2nd-year report.
 - `manoeuvres` is an array of manoeuvres.
 """
 function run_multiple_sim(N=1;
-        manoeuvres=[:hovering, :forward],
+        manoeuvres::AbstractArray{Symbol}=[:hovering, :forward],
         h_threshold=5.0,  # m (nothing: no constraint)
         actual_time_limit=60.0,  # s
         N_thread=Threads.nthreads(),

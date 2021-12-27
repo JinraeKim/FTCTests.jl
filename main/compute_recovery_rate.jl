@@ -16,12 +16,12 @@ function _file_path_to_nt(file_path::String, t1, threshold)
     @unpack faults, fdi, simulation_height_success, simulation_actual_time_success = jld2
     if simulation_actual_time_success == true
         if simulation_height_success == false
-            is_success = missing
+            is_success = false
         else
             is_success = evaluate(jld2, t1, threshold)
         end
     else
-        is_success = false  # not considered as either true or false
+        is_success = missing  # not considered as either true or false
     end
     _nt = (;
            fault=extract_fault_property(faults),

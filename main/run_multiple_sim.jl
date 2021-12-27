@@ -57,7 +57,8 @@ This is used for 2nd-year report.
 - collector = Transducers.tcollect (parallel computing)
 - manoeuvre = :hovering or :forward (:debug for debugging)
 """
-function run_multiple_sim(manoeuvres::Array, N=1;
+function run_multiple_sim(N=1;
+        manoeuvres=[:hovering, :forward],
         h_threshold=5.0,  # m (nothing: no constraint)
         actual_time_limit=60.0,  # s
         N_thread=Threads.nthreads(),

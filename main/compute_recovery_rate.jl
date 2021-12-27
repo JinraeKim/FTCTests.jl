@@ -41,7 +41,7 @@ function compute_recovery_rate(; _dir_log="data", t1=15.0, threshold=0.1)
             dir_log = joinpath(joinpath(_dir_log, String(manoeuvre)), String(method))
             file_paths = readdir(dir_log; join=true)
             _ = file_paths |> Map(file_path ->
-                                  push!(_df, _file_path_to_nt(file_path, t1, threshold))
+                                  push!(_df, _file_path_to_nt(file_path, t1, threshold); promote=true)
                                  ) |> collect
             _df_simtime = filter(:sim_time_success => t -> t == true, _df)
             # group by FDI delay
@@ -58,7 +58,7 @@ function compute_recovery_rate(; _dir_log="data", t1=15.0, threshold=0.1)
                                fault_kind=df_fault_kind.fault_kind[1],  # the same fault kind
                                recovery_rate=recovery_rate,
                                num=length(df_fault_kind.is_success)
-                              ))
+                              ); promote=true)
                 end
             end
         end

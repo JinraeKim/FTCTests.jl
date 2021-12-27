@@ -106,9 +106,6 @@ function run_multiple_sim(manoeuvre::Symbol, N=1;
     x0s = 1:N |> Map(i -> FTCTests.sample(multicopter, distribution_info(manoeuvre)...)) |> collect
     for method in [:adaptive, :adaptive2optim]
         dir_log = joinpath(joinpath(_dir_log, String(manoeuvre)), String(method))
-        x0s = 1:N |>
-        Map(i -> FTCTests.sample(multicopter, distribution_info(manoeuvre)...)) |>
-        collect
         case_numbers_partition = 1:N |> Partition(N_thread; flush=true) |> Map(copy) |> collect
         for case_numbers in case_numbers_partition
             @time _ = zip(case_numbers,

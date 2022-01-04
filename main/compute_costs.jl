@@ -1,9 +1,10 @@
 using FTCTests
 using JLD2
 using Transducers
+using UnPack
 
 
-function compute_cost(file_path::String; cost=PositionAngularVelocityCostFunctional())
+function compute_cost(file_path::String; cf=PositionAngularVelocityCostFunctional())
     jld2 = JLD2.load(file_path)
     @unpack df, traj_des = jld2
     ts = df.time
@@ -17,7 +18,7 @@ function compute_cost(file_path::String; cost=PositionAngularVelocityCostFunctio
      e_ps=e_ps,
      e_ωs=e_ωs,
     )
-    J = cost(ts, e_ps, e_ωs)
+    J = cost(cf, ts, e_ps, e_ωs)
 end
 
 function compute_costs(; dir_log="data/hovering/adaptive")

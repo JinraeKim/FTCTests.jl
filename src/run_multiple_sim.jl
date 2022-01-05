@@ -1,9 +1,3 @@
-using FTCTests  # reexport FaulTolerantControl
-using Transducers
-using Random
-using Test
-
-
 """
 euler = [ψ, θ, ϕ]  # yaw, pitch, roll
 """
@@ -58,12 +52,19 @@ This is used for 2nd-year report.
 - manoeuvre = :hovering or :forward (:debug for debugging)
 - `manoeuvres` is an array of manoeuvres.
 """
-function run_multiple_sim(N=1;
-        manoeuvres::AbstractArray{Symbol}=[:hovering, :forward],
-        h_threshold=5.0,  # m (nothing: no constraint)
-        actual_time_limit=60.0,  # s
-        N_thread=Threads.nthreads(),
-        collector=Transducers.tcollect, will_plot=false, seed=2021)
+function run_multiple_sim(N::Int,
+        manoeuvres::AbstractArray{Symbol},
+        methods::AbstractArray{Symbol},
+        _faults,
+        θs_array,  # path parameter
+        t0::Real,
+        tf::Real,
+        h_threshold::Union{Real, Nothing},  # m (nothing: no constraint)
+        actual_time_limit::Union{Real, Nothing},  # s
+        N_thread::Int,
+        collector,
+        will_plot::Bool, seed::Int,
+    )
     println("Simulation case: $(N)")
     if collector == tcollect
         println("Parallel computing...")
@@ -75,38 +76,12 @@ function run_multiple_sim(N=1;
     end
     Random.seed!(seed)
     _dir_log = "data"
-    # methods = [:adaptive, :optim, :adaptive2optim]
     multicopter = LeeHexacopter()  # dummy
-    fault_time = 0.0
-    _fault_list_single = [[
-                          [LoE(fault_time, index, effectiveness)]
-                          for index in 1:6
-                          for effectiveness in [0.9, 0.5, 0.1, 0.0]
-                         ]...]
-    _fault_list_double = [[
-                          [LoE(fault_time, index, effectiveness),
-                           LoE(fault_time, index2, effectiveness)]
-                          for index in 1:5
-                          for index2 in index+1:6
-                          for effectiveness in [0.9, 0.5, 0.1, 0.0]
-                         ]...]
-    _fault_list_single_failure_single_fault = [[
-                                               [LoE(fault_time, index, 0.0),
-                                                LoE(fault_time, index2, effectiveness)]
-                                               for index in 1:6
-                                               for index2 in filter(x -> x != index, 1:6)
-                                               for effectiveness in [0.9, 0.5, 0.1]
-                                              ]...]
-    _fault_list = [_fault_list_single..., _fault_list_double..., _fault_list_single_failure_single_fault...]
-    _faults = 1:N |> Map(i -> rand(_fault_list)) |> collect  # randomly sampled N faults
-    θs = [[0, 0, -10.0]]  # constant position tracking
-    # θs = [[0, 0, 0], [3, 4, 5], [2, 1, -3]]  # Bezier curve
-    t0, tf = 0.0, 20.0
-    traj_des = Bezier(θs, t0, tf)
+    trajs_des = θs_array |> Map(θs -> Bezier(θs, t0, tf)) |> collect
     # run sim and save fig
     for manoeuvre in manoeuvres
         x0s = 1:N |> Map(i -> FTCTests.sample(multicopter, distribution_info(manoeuvre)...)) |> collect
-        for method in [:adaptive, :adaptive2optim]
+        for method in methods
             dir_log = joinpath(joinpath(_dir_log, String(manoeuvre)), String(method))
             if method == :adaptive  # method `:adaptive` does not require FDI information; not affected by FDI delay time constant `τ`.
                 τs = [0.0]
@@ -120,19 +95,22 @@ function run_multiple_sim(N=1;
                 for case_numbers in case_numbers_partition
                     @time _ = zip(case_numbers,
                                 x0s[case_numbers],
-                                _faults[case_numbers]) |>
-                    MapSplat((i, x0, _fault) -> FTCTests.run_sim(method, x0, multicopter,
-                                                                    FaultSet(_fault...),
-                                                                    DelayFDI(τ),
-                                                                    traj_des, dir_log, i;
-                                                                    will_plot=will_plot,
-                                                                    t0=t0, tf=tf,
-                                                                    h_threshold=h_threshold,
-                                                                    actual_time_limit=actual_time_limit,
-                                                                )) |> collector
+                                _faults[case_numbers],
+                                trajs_des[case_numbers],
+                               ) |>
+                    MapSplat((i, x0, _fault, traj_des) -> FTCTests.run_sim(method, x0, multicopter,
+                                                                           FaultSet(_fault...),
+                                                                           DelayFDI(τ),
+                                                                           traj_des, dir_log, i;
+                                                                           will_plot=will_plot,
+                                                                           t0=t0, tf=tf,
+                                                                           h_threshold=h_threshold,
+                                                                           actual_time_limit=actual_time_limit,
+                                                                          )) |> collector
                 end
             end
         end
     end
     nothing
 end
+

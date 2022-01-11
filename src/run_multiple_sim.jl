@@ -66,6 +66,8 @@ function run_multiple_sim(N::Int,
         will_plot::Bool, seed::Int,
     )
     println("Simulation case: $(N)")
+    println("manoeuvres: $(manoeuvres)")
+    println("methods: $(methods)")
     if collector == tcollect
         println("Parallel computing...")
         will_plot == true ? error("plotting figures not supported in tcollect") : nothing

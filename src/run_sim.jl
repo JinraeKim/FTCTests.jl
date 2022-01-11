@@ -21,14 +21,14 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
     file_path = joinpath(dir_log, lpad(string(case_number), 4, '0') * "_τ_" * replace(string(fdi.τ), "." => "_") * "_" * TRAJ_DATA_NAME)
     @show file_path
     saved_data = nothing
-    data_exists = isfile(file_path)
+    # data_exists = isfile(file_path)
     # if !data_exists
         @unpack m, B, u_min, u_max, dim_input = multicopter
         plant = FTC.DelayFDI_Plant(multicopter, fdi, faults)
         @unpack multicopter = plant
         controller = BacksteppingPositionController(m; pos_cmd_func=pos_cmd_func)
         # optimisation-based allocators
-        allocator = PseudoInverseAllocator(B)  # deprecated; it does not work when failures occur. I guess it's due to Moore-Penrose pseudo inverse.
+        # allocator = PseudoInverseAllocator(B)  # deprecated; it does not work when failures occur. I guess it's due to Moore-Penrose pseudo inverse.
         allocator = ConstrainedAllocator(B, u_min, u_max)
         control_system_optim = FTC.BacksteppingControl_StaticAllocator_ControlSystem(controller, allocator)
         env_optim = FTC.DelayFDI_Plant_BacksteppingControl_StaticAllocator_ControlSystem(plant, control_system_optim)

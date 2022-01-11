@@ -11,7 +11,7 @@ function run_multiple_sim_training_cost(N=1;
         manoeuvres=[:debug],
         methods=[:adaptive],
         t0=0.0, tf=20.0,
-        h_threshold=5.0,  # m (nothing: no constraint)
+        h_threshold=nothing,  # m (nothing: no constraint)
         actual_time_limit=nothing,  # s (nothing: no constraint)
         N_thread=Threads.nthreads(),
         collector=Transducers.tcollect, will_plot=false, seed=2021,
@@ -21,7 +21,7 @@ function run_multiple_sim_training_cost(N=1;
     # rotor index ∈ {1, 2, 3, 4, 5, 6}
     # effectiveness ∈ [0, 1]
     _faults = 1:N |> Map(i -> [LoE(fault_time, rand(1:6), rand(1)[1])]) |> collect  # randomly sampled N faults
-    θs = [[0, 0, 0.0]]  # Control points of Bezier curve; constant position tracking
+    θs = [[0, 0, -9.0]]  # Control points of Bezier curve; constant position tracking
     θs_array = 1:N |> Map(i -> θs) |> collect
     run_multiple_sim(N,
                      manoeuvres,

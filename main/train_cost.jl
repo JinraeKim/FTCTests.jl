@@ -80,12 +80,13 @@ end
 function make_a_trainable(data)
     # feature
     features = data |> Map(datum -> vcat(
-                                         # datum.x0,
+                                         datum.x0,
                                          datum.λ,
                                          datum._θ,
                                         )) |> collect
     # output
     Js = data |> Map(datum -> datum.J) |> collect
+    @show Js |> maximum
     _data = (;
              feature = hcat(features...),
              J = hcat(Js...),
@@ -93,14 +94,14 @@ function make_a_trainable(data)
 end
 
 
-function main(epochs; dir_log="data/debug/adaptive", seed=2021)
+function main(epochs; dir_log="data/hovering/adaptive", seed=2021)
     Random.seed!(seed)
     # load data
     file_paths = readdir(dir_log; join=true)
     @time data = preprocess(file_paths; verbose=false)
     # construct approximator
     n_nt = (;
-            # x=18,
+            x=18,
             λ=6,
             θ=3,
            )  # dimensions

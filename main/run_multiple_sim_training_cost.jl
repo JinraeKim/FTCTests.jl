@@ -8,7 +8,7 @@ using Test
 This is for the training of cost function.
 """
 function run_multiple_sim_training_cost(N=1;
-        manoeuvres=[:hovering],
+        manoeuvres=[:debug],
         methods=[:adaptive],
         t0=0.0, tf=20.0,
         h_threshold=nothing,  # m (nothing: no constraint)

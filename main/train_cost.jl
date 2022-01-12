@@ -86,7 +86,6 @@ function make_a_trainable(data)
                                         )) |> collect
     # output
     Js = data |> Map(datum -> datum.J) |> collect
-    @show Js |> maximum
     _data = (;
              feature = hcat(features...),
              J = hcat(Js...),
@@ -106,7 +105,7 @@ function main(epochs; dir_log="data/hovering/adaptive", seed=2021)
             θ=3,
            )  # dimensions
     n = sum(n_nt)  # total dim (feature dimension)
-    n_h = 128  # hidden layer nodes
+    n_h = 256  # hidden layer nodes
     Ĵ = Chain(
               Dense(n, n_h, leakyrelu),
               Dense(n_h, n_h, leakyrelu),

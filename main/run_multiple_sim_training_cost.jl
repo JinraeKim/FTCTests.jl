@@ -24,7 +24,7 @@ function run_multiple_sim_training_cost(N=1;
     # for trajectory parameters (terminal position constraint)
     multicopter = LeeHexacopter()  # dummy
     min_nt, max_nt = FTCTests.distribution_info(:hovering)
-    # θs = [[0, 0, -10.0]]  # Control points of Bezier curve; constant position tracking
+    # Control points of Bezier curve; randomly generated constant position tracking
     θs_array = 1:N |> Map(i -> [FTCTests.sample(multicopter, min_nt, max_nt)[1]]) |> collect  # sample(...)[1] corresponds to the position vector
     run_multiple_sim(N,
                      manoeuvres,

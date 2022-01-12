@@ -105,10 +105,9 @@ function main(epochs; dir_log="data/debug/adaptive", seed=2021)
             θ=3,
            )  # dimensions
     n = sum(n_nt)  # total dim (feature dimension)
-    n_h = 128  # hidden layer nodes
+    n_h = 256  # hidden layer nodes
     Ĵ = Chain(
               Dense(n, n_h, leakyrelu),
-              Dense(n_h, n_h, leakyrelu),
               Dense(n_h, 1, leakyrelu),
              )
     data_train, data_test = partitionTrainTest(data, 0.9)  # 90:10

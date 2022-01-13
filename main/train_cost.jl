@@ -26,7 +26,6 @@ function preprocess(file_path::String; cf=PositionAngularVelocityCostFunctional(
             df = jld2["df"]
             traj_des = jld2["traj_des"]
             faults = jld2["faults"]
-            # @unpack df, traj_des, faults = jld2
             @assert length(faults) == 1  # currently, only single fault is considered
             # desired trajectory parameter
             _θ = vcat(traj_des.θ...)  # concatenated control points

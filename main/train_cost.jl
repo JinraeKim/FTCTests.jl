@@ -21,31 +21,33 @@ function faults_to_effectiveness(faults; dim_input=6, _fault_time=0.0)
 end
 
 function preprocess(file_path::String; cf=PositionAngularVelocityCostFunctional(), verbose=true)
-    if file_path[end-4:end] == ".jld2"
-        jld2 = JLD2.load(file_path)
-        @unpack df, traj_des, faults = jld2
-        @assert length(faults) == 1  # currently, only single fault is considered
-        # desired trajectory parameter
-        _θ = vcat(traj_des.θ...)  # concatenated control points
-        # actuator fault (effectiveness)
-        λ = faults_to_effectiveness(faults)
-        # initial condition
-        x0 = df.sol[1].plant.state
-        # cost
-        ts = df.time
-        poss = df.sol |> Map(datum -> datum.plant.state.p) |> collect
-        poss_des = ts |> Map(traj_des) |> collect
-        e_ps = poss .- poss_des
-        if verbose
-            @warn("TODO: there is no desired angular velocity")
+    res = try
+        jldopen(file_path, "r") do jld2
+            df = jld2["df"]
+            traj_des = jld2["traj_des"]
+            faults = jld2["faults"]
+            # @unpack df, traj_des, faults = jld2
+            @assert length(faults) == 1  # currently, only single fault is considered
+            # desired trajectory parameter
+            _θ = vcat(traj_des.θ...)  # concatenated control points
+            # actuator fault (effectiveness)
+            λ = faults_to_effectiveness(faults)
+            # initial condition
+            x0 = df.sol[1].plant.state
+            # cost
+            ts = df.time
+            poss = df.sol |> Map(datum -> datum.plant.state.p) |> collect
+            poss_des = ts |> Map(traj_des) |> collect
+            e_ps = poss .- poss_des
+            if verbose
+                @warn("TODO: there is no desired angular velocity")
+            end
+            e_ωs = ts |> Map(t -> zeros(3)) |> collect
+            J = cost(cf, ts, e_ps, e_ωs)
+            (; x0=x0, λ=λ, _θ=_θ, J=J)
         end
-        e_ωs = ts |> Map(t -> zeros(3)) |> collect
-        J = cost(cf, ts, e_ps, e_ωs)
-        return (; x0=x0, λ=λ, _θ=_θ, J=J)
-    else
-        if verbose
-            @warn("ignored; the file's extension is not .jld2")
-        end
+    catch
+        @warn("Fail to load a file; is the file loadable via JLD2?")
         missing
     end
 end

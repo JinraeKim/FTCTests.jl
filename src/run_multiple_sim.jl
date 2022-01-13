@@ -52,7 +52,8 @@ This is used for 2nd-year report.
 - manoeuvre = :hovering or :forward (:debug for debugging)
 - `manoeuvres` is an array of manoeuvres.
 """
-function run_multiple_sim(N::Int,
+function run_multiple_sim(
+        N::Int,
         manoeuvres::AbstractArray{Symbol},
         methods::AbstractArray{Symbol},
         _faults,
@@ -63,9 +64,10 @@ function run_multiple_sim(N::Int,
         actual_time_limit::Union{Real, Nothing},  # s
         N_thread::Int,
         collector,
-        will_plot::Bool, seed::Int,
+        will_plot::Bool,
+        seed::Int,
     )
-    println("Simulation case: $(N)")
+    println("# of simulation cases: $(N)")
     println("manoeuvres: $(manoeuvres)")
     println("methods: $(methods)")
     if collector == tcollect
@@ -77,7 +79,7 @@ function run_multiple_sim(N::Int,
         error("Invalid collector")
     end
     Random.seed!(seed)
-    _dir_log = "data"
+    _dir_log = joinpath("data", "N_$(N)_seed_$(seed)")
     multicopter = LeeHexacopter()  # dummy
     trajs_des = θs_array |> Map(θs -> Bezier(θs, t0, tf)) |> collect
     # run sim and save fig

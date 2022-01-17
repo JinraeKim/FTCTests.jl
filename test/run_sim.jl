@@ -1,4 +1,5 @@
 using Test
+using FTCTests
 
 
 @testset "run_sim" begin

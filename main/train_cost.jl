@@ -25,7 +25,13 @@ function preprocess(file_path::String; cf=PositionAngularVelocityCostFunctional(
         jld2 = JLD2.load(file_path)
         @unpack df, traj_des, faults = jld2
         @assert length(faults) == 1  # currently, only single fault is considered
+        # desired trajectory parameter
+        _θ = vcat(traj_des.θ...)  # concatenated control points
+        # actuator fault (effectiveness)
         λ = faults_to_effectiveness(faults)
+        # initial condition
+        x0 = df.sol[1].plant.state
+        # cost
         ts = df.time
         poss = df.sol |> Map(datum -> datum.plant.state.p) |> collect
         poss_des = ts |> Map(traj_des) |> collect
@@ -35,7 +41,7 @@ function preprocess(file_path::String; cf=PositionAngularVelocityCostFunctional(
         end
         e_ωs = ts |> Map(t -> zeros(3)) |> collect
         J = cost(cf, ts, e_ps, e_ωs)
-        return (; λ=λ, J=J)
+        return (; x0=x0, λ=λ, _θ=_θ, J=J)
     else
         if verbose
             @warn("ignored; the file's extension is not .jld2")
@@ -53,14 +59,13 @@ end
 function training_test(Ĵ, data_train, data_test, epochs)
     _data_train = make_a_trainable(data_train)
     _data_test = make_a_trainable(data_test)
-    loss(d) = Flux.Losses.mse(Ĵ(d.λ), d.J)
+    loss(d) = Flux.Losses.mse(Ĵ(d.feature), d.J)
     opt = ADAM(1e-3)
     ps = Flux.params(Ĵ)
-    dataloader = DataLoader(_data_train; batchsize=16, shuffle=true, partial=false)
+    dataloader = DataLoader(_data_train; batchsize=32, shuffle=true, partial=false)
     println("Training $(epochs) epoch...")
     for epoch in 0:epochs
         println("epoch: $(epoch)/$(epochs)")
-        println("train loss: $(loss(_data_train)), test loss: $(loss(_data_test))")
         if epoch != 0
             for d in dataloader
                 train_loss, back = Flux.Zygote.pullback(() -> loss(d), ps)
@@ -68,33 +73,44 @@ function training_test(Ĵ, data_train, data_test, epochs)
                 Flux.update!(opt, ps, gs)
             end
         end
+        println("train loss: $(loss(_data_train)), test loss: $(loss(_data_test))")
     end
 end
 
 function make_a_trainable(data)
-    λs = data |> Map(datum -> datum.λ) |> collect
+    # feature
+    features = data |> Map(datum -> vcat(
+                                         # datum.x0,
+                                         datum.λ,
+                                         datum._θ,
+                                        )) |> collect
+    # output
     Js = data |> Map(datum -> datum.J) |> collect
     _data = (;
-             λ = hcat(λs...),
+             feature = hcat(features...),
              J = hcat(Js...),
             )  # for Flux
 end
 
 
-function main(; dir_log="data/debug/adaptive")
+function main(epochs; dir_log="data/debug/adaptive", seed=2021)
+    Random.seed!(seed)
     # load data
     file_paths = readdir(dir_log; join=true)
-    data = preprocess(file_paths; verbose=false)
+    @time data = preprocess(file_paths; verbose=false)
     # construct approximator
-    n_λ = 6
-    n = n_λ  # total dim
-    n_h = 64  # hidden layer nodes
+    n_nt = (;
+            # x=18,
+            λ=6,
+            θ=3,
+           )  # dimensions
+    n = sum(n_nt)  # total dim (feature dimension)
+    n_h = 128  # hidden layer nodes
     Ĵ = Chain(
               Dense(n, n_h, leakyrelu),
               Dense(n_h, n_h, leakyrelu),
               Dense(n_h, 1, leakyrelu),
              )
     data_train, data_test = partitionTrainTest(data, 0.9)  # 90:10
-    epochs = 30
     training_test(Ĵ, data_train, data_test, epochs)
 end

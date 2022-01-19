@@ -2,6 +2,9 @@
 """
     partitionTrainTest(data, at)
 Split a dataset into train and test datasets (array).
+`at` ∈ [0, 1] adjusts the ratio of train and test data.
+For example,
+`at` = 0.8 implies train:test = 80:20.
 """
 function partitionTrainTest(data, at)
     n = length(data)

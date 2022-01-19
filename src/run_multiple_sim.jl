@@ -72,6 +72,7 @@ function run_multiple_sim(
     println("methods: $(methods)")
     if collector == tcollect
         println("Parallel computing...")
+        # GR has concurrency issues
         will_plot == true ? error("plotting figures not supported in tcollect") : nothing
     elseif collector == collect
         println("Sequential computing...")
@@ -80,6 +81,7 @@ function run_multiple_sim(
     end
     Random.seed!(seed)
     _dir_log = joinpath("data", "N_$(N)_seed_$(seed)")
+    _dir_figure = joinpath("figures", "N_$(N)_seed_$(seed)")
     multicopter = LeeHexacopter()  # dummy
     trajs_des = θs_array |> Map(θs -> Bezier(θs, t0, tf)) |> collect
     # run sim and save fig
@@ -87,6 +89,7 @@ function run_multiple_sim(
         x0s = 1:N |> Map(i -> FTCTests.sample(multicopter, distribution_info(manoeuvre)...)) |> collect
         for method in methods
             dir_log = joinpath(joinpath(_dir_log, String(manoeuvre)), String(method))
+            dir_figure = will_plot ? joinpath(joinpath(_dir_figure, String(manoeuvre)), String(method)) : nothing
             if method == :adaptive  # method `:adaptive` does not require FDI information; not affected by FDI delay time constant `τ`.
                 τs = [0.0]
             elseif method == :adaptive2optim
@@ -105,8 +108,10 @@ function run_multiple_sim(
                     MapSplat((i, x0, _fault, traj_des) -> FTCTests.run_sim(method, x0, multicopter,
                                                                            FaultSet(_fault...),
                                                                            DelayFDI(τ),
-                                                                           traj_des, dir_log, i;
-                                                                           will_plot=will_plot,
+                                                                           traj_des,
+                                                                           dir_log,
+                                                                           i;
+                                                                           dir_figure=dir_figure,
                                                                            t0=t0, tf=tf,
                                                                            h_threshold=h_threshold,
                                                                            actual_time_limit=actual_time_limit,

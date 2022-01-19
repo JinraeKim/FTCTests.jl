@@ -12,7 +12,7 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
         dir_log::String, case_number::Int;
         t0=0.0, tf=20.0,
         savestep=0.01,
-        will_plot=false,
+        dir_figure=nothing,
         h_threshold=nothing,
         actual_time_limit=nothing,
     )
@@ -20,132 +20,129 @@ function run_sim(method, args_multicopter, multicopter::FlightSims.Multicopter,
     mkpath(dir_log)
     file_path = joinpath(dir_log, lpad(string(case_number), 4, '0') * "_τ_" * replace(string(fdi.τ), "." => "_") * "_" * TRAJ_DATA_NAME)
     @show file_path
-    saved_data = nothing
-    # data_exists = isfile(file_path)
-    # if !data_exists
-        @unpack m, B, u_min, u_max, dim_input = multicopter
-        plant = FTC.DelayFDI_Plant(multicopter, fdi, faults)
-        @unpack multicopter = plant
-        controller = BacksteppingPositionController(m; pos_cmd_func=pos_cmd_func)
-        # optimisation-based allocators
-        # allocator = PseudoInverseAllocator(B)  # deprecated; it does not work when failures occur. I guess it's due to Moore-Penrose pseudo inverse.
-        allocator = ConstrainedAllocator(B, u_min, u_max)
-        control_system_optim = FTC.BacksteppingControl_StaticAllocator_ControlSystem(controller, allocator)
-        env_optim = FTC.DelayFDI_Plant_BacksteppingControl_StaticAllocator_ControlSystem(plant, control_system_optim)
-        # adaptive allocators
-        allocator = AdaptiveAllocator(B)
-        control_system_adaptive = FTC.BacksteppingControl_AdaptiveAllocator_ControlSystem(controller, allocator)
-        env_adaptive = FTC.DelayFDI_Plant_BacksteppingControl_AdaptiveAllocator_ControlSystem(plant, control_system_adaptive)
-        p0, x0 = nothing, nothing
-        if method == :adaptive || method == :adaptive2optim
-            p0 = :adaptive
-            x0 = State(env_adaptive)(; args_multicopter=args_multicopter)  # start with adaptive CA
-        elseif method == :optim
-            p0 = :optim
-            x0 = State(env_optim)(; args_multicopter=args_multicopter)  # start with optim CA
+    @unpack m, B, u_min, u_max, dim_input = multicopter
+    plant = FTC.DelayFDI_Plant(multicopter, fdi, faults)
+    @unpack multicopter = plant
+    controller = BacksteppingPositionController(m; pos_cmd_func=pos_cmd_func)
+    # optimisation-based allocators
+    # allocator = PseudoInverseAllocator(B)  # deprecated; it does not work when failures occur. I guess it's due to Moore-Penrose pseudo inverse.
+    allocator = ConstrainedAllocator(B, u_min, u_max)
+    control_system_optim = FTC.BacksteppingControl_StaticAllocator_ControlSystem(controller, allocator)
+    env_optim = FTC.DelayFDI_Plant_BacksteppingControl_StaticAllocator_ControlSystem(plant, control_system_optim)
+    # adaptive allocators
+    allocator = AdaptiveAllocator(B)
+    control_system_adaptive = FTC.BacksteppingControl_AdaptiveAllocator_ControlSystem(controller, allocator)
+    env_adaptive = FTC.DelayFDI_Plant_BacksteppingControl_AdaptiveAllocator_ControlSystem(plant, control_system_adaptive)
+    p0, x0 = nothing, nothing
+    if method == :adaptive || method == :adaptive2optim
+        p0 = :adaptive
+        x0 = State(env_adaptive)(; args_multicopter=args_multicopter)  # start with adaptive CA
+    elseif method == :optim
+        p0 = :optim
+        x0 = State(env_optim)(; args_multicopter=args_multicopter)  # start with optim CA
+    else
+        error("Invalid method")
+    end
+    @Loggable function dynamics!(dx, x, p, t)
+        @log method = p
+        if p == :adaptive
+            @nested_log Dynamics!(env_adaptive)(dx, x, p, t)
+        elseif p == :optim
+            @nested_log Dynamics!(env_optim)(dx, x, p, t)
         else
             error("Invalid method")
         end
-        @Loggable function dynamics!(dx, x, p, t)
-            @log method = p
-            if p == :adaptive
-                @nested_log Dynamics!(env_adaptive)(dx, x, p, t)
-            elseif p == :optim
-                @nested_log Dynamics!(env_optim)(dx, x, p, t)
-            else
-                error("Invalid method")
-            end
-        end
-        # callback; TODO: a fancy way of utilising callbacks like SimulationLogger.jl...?
-        __log_indicator__ = __LOG_INDICATOR__()
-        affect! = (integrator) -> error("Invalid method")
-        if method == :adaptive2optim
-            affect! = (integrator) -> integrator.p = :optim
-        elseif method == :adaptive || method == :optim
-            affect! = (integrator) -> nothing
-        end
-        condition = function (x, t, integrator)
-            p = integrator.p
-            if p == :adaptive
-                x = copy(x)
-                dict = Dynamics!(env_adaptive)(zero.(x), x, p, t, __log_indicator__)
-                u_actual = dict[:plant][:input][:u_actual]
-                is_switched = any(u_actual .>= u_max) || any(u_actual .<= u_min)
-                return is_switched
-            elseif p == :optim
-                return false
-            else
-                error("Invalid method")
-            end
-        end
-        cb_switch = DiscreteCallback(condition, affect!)
-        cbs = Any[cb_switch]
-        simulation_height_success = true
-        # termination
-        if h_threshold != nothing
-            function terminate_condition(X, t, integrator)
-                @unpack p = X.plant.multicopter
-                h = -p[3]  # h = -z
-                h < h_threshold
-            end
-            function terminate_affect!(integrator)
-                simulation_height_success = false
-                @warn("Simulation is terminated due to the loss of height")
-                terminate!(integrator)
-            end
-            cb_terminate = DiscreteCallback(terminate_condition, terminate_affect!)
-            push!(cbs, cb_terminate)
-        end
-        simulation_actual_time_success = true
-        _t0 = time()
-        if actual_time_limit != nothing
-            @assert actual_time_limit > 0.0
-            function terminate_condition_time(X, t, integrator)
-                _t = time()
-                (_t - _t0) > actual_time_limit
-            end
-            function terminate_affect_time!(integrator)
-                simulation_actual_time_success = false
-                @warn("Simulation is terminated 'cause it exceeds the actual time limit of $(actual_time_limit) [s]")
-                terminate!(integrator)
-            end
-            cb_terminate_time = DiscreteCallback(terminate_condition_time, terminate_affect_time!)
-            push!(cbs, cb_terminate_time)
-        end
-        cb = CallbackSet(cbs...)
-        # sim
-        simulator = Simulator(
-                              x0, dynamics!, p0;
-                              t0=t0, tf=tf,
-                             )
-        # TODO: time exceed should be in `solve` for properly measuring elapsed time
-        df = solve(simulator;
-                   savestep=savestep,
-                   callback=cb,
-                  )
-        FileIO.save(file_path, Dict(
-                                    "df" => df,
-                                    "method" => String(method),
-                                    "faults" => faults,
-                                    "fdi" => fdi,
-                                    "t0" => t0,
-                                    "tf" => tf,
-                                    "traj_des" => traj_des,
-                                    "simulation_height_success" => simulation_height_success,
-                                    "simulation_actual_time_success" => simulation_actual_time_success,
-                                   ))
-    # end
-    saved_data = JLD2.load(file_path)
-    if will_plot
-        plot_figures(multicopter, dir_log, saved_data)
     end
-    saved_data
+    # callback; TODO: a fancy way of utilising callbacks like SimulationLogger.jl...?
+    __log_indicator__ = __LOG_INDICATOR__()
+    affect! = (integrator) -> error("Invalid method")
+    if method == :adaptive2optim
+        affect! = (integrator) -> integrator.p = :optim
+    elseif method == :adaptive || method == :optim
+        affect! = (integrator) -> nothing
+    end
+    condition = function (x, t, integrator)
+        p = integrator.p
+        if p == :adaptive
+            x = copy(x)
+            dict = Dynamics!(env_adaptive)(zero.(x), x, p, t, __log_indicator__)
+            u_actual = dict[:plant][:input][:u_actual]
+            is_switched = any(u_actual .>= u_max) || any(u_actual .<= u_min)
+            return is_switched
+        elseif p == :optim
+            return false
+        else
+            error("Invalid method")
+        end
+    end
+    cb_switch = DiscreteCallback(condition, affect!)
+    cbs = Any[cb_switch]
+    simulation_height_success = true
+    # termination
+    if h_threshold != nothing
+        function terminate_condition(X, t, integrator)
+            @unpack p = X.plant.multicopter
+            h = -p[3]  # h = -z
+            h < h_threshold
+        end
+        function terminate_affect!(integrator)
+            simulation_height_success = false
+            @warn("Simulation is terminated due to the loss of height")
+            terminate!(integrator)
+        end
+        cb_terminate = DiscreteCallback(terminate_condition, terminate_affect!)
+        push!(cbs, cb_terminate)
+    end
+    simulation_actual_time_success = true
+    _t0 = time()
+    if actual_time_limit != nothing
+        @assert actual_time_limit > 0.0
+        function terminate_condition_time(X, t, integrator)
+            _t = time()
+            (_t - _t0) > actual_time_limit
+        end
+        function terminate_affect_time!(integrator)
+            simulation_actual_time_success = false
+            @warn("Simulation is terminated 'cause it exceeds the actual time limit of $(actual_time_limit) [s]")
+            terminate!(integrator)
+        end
+        cb_terminate_time = DiscreteCallback(terminate_condition_time, terminate_affect_time!)
+        push!(cbs, cb_terminate_time)
+    end
+    cb = CallbackSet(cbs...)
+    # sim
+    simulator = Simulator(
+                          x0, dynamics!, p0;
+                          t0=t0, tf=tf,
+                         )
+    # TODO: time exceed should be in `solve` for properly measuring elapsed time
+    df = solve(simulator;
+               savestep=savestep,
+               callback=cb,
+              )
+    sim_res = Dict(
+                   "df" => df,
+                   "method" => String(method),
+                   "faults" => faults,
+                   "fdi" => fdi,
+                   "t0" => t0,
+                   "tf" => tf,
+                   "traj_des" => traj_des,
+                   "simulation_height_success" => simulation_height_success,
+                   "simulation_actual_time_success" => simulation_actual_time_success,
+                  )
+    FileIO.save(file_path, sim_res)
+    if dir_figure != nothing
+        plot_figures(multicopter, dir_figure, sim_res)
+    end
+    sim_res
 end
 
 
-function plot_figures(multicopter, dir_log, saved_data)
+function plot_figures(multicopter, dir_figure, sim_res::Dict)
+    mkpath(dir_figure)
     @unpack u_min, u_max, dim_input = multicopter
-    @unpack df, method, traj_des = saved_data
+    @unpack df, method, traj_des = sim_res
     pos_cmd_func(t) = traj_des(t)
     # data
     ts = df.time
@@ -253,13 +250,13 @@ function plot_figures(multicopter, dir_log, saved_data)
                     link=:x,  # aligned x axes
                     layout=(3, 1), size=(600, 600),
                    )
-     savefig(p_state, joinpath(dir_log, "state.pdf"))
+     savefig(p_state, joinpath(dir_figure, "state.pdf"))
     p_state = plot(p_pos, p__Λ;
                    link=:x,  # aligned x axes
                    layout=(2, 1), size=(600, 600),
                   )
-    savefig(p_state, joinpath(dir_log, "state.pdf"))
-    savefig(p_state, joinpath(dir_log, "state.png"))
+    savefig(p_state, joinpath(dir_figure, "state.pdf"))
+    savefig(p_state, joinpath(dir_figure, "state.png"))
     ## u
     p_u = plot(;
                title="rotor input",
@@ -386,8 +383,8 @@ function plot_figures(multicopter, dir_log, saved_data)
                    link=:x,  # aligned x axes
                    layout=(3, 1), size=(600, 600),
                   )
-    savefig(p_input, joinpath(dir_log, "input.pdf"))
-    savefig(p_input, joinpath(dir_log, "input.png"))
+    savefig(p_input, joinpath(dir_figure, "input.pdf"))
+    savefig(p_input, joinpath(dir_figure, "input.png"))
     # TODO: issue; adaptive control allocation seems not properly regulate ω_z error
     ## eulers
      p_euler = plot(;)
@@ -403,6 +400,6 @@ function plot_figures(multicopter, dir_log, saved_data)
            color=3,
            label="ψ (deg)",
           )
-     savefig(p_euler, joinpath(dir_log, "euler.pdf"))
-     savefig(p_euler, joinpath(dir_log, "euler.png"))
+     savefig(p_euler, joinpath(dir_figure, "euler.pdf"))
+     savefig(p_euler, joinpath(dir_figure, "euler.png"))
 end

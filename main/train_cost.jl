@@ -21,31 +21,32 @@ function faults_to_effectiveness(faults; dim_input=6, _fault_time=0.0)
 end
 
 function preprocess(file_path::String; cf=PositionAngularVelocityCostFunctional(), verbose=true)
-    if file_path[end-4:end] == ".jld2"
-        jld2 = JLD2.load(file_path)
-        @unpack df, traj_des, faults = jld2
-        @assert length(faults) == 1  # currently, only single fault is considered
-        # desired trajectory parameter
-        _θ = vcat(traj_des.θ...)  # concatenated control points
-        # actuator fault (effectiveness)
-        λ = faults_to_effectiveness(faults)
-        # initial condition
-        x0 = df.sol[1].plant.state
-        # cost
-        ts = df.time
-        poss = df.sol |> Map(datum -> datum.plant.state.p) |> collect
-        poss_des = ts |> Map(traj_des) |> collect
-        e_ps = poss .- poss_des
-        if verbose
-            @warn("TODO: there is no desired angular velocity")
+    res = try
+        jldopen(file_path, "r") do jld2
+            df = jld2["df"]
+            traj_des = jld2["traj_des"]
+            faults = jld2["faults"]
+            @assert length(faults) == 1  # currently, only single fault is considered
+            # desired trajectory parameter
+            _θ = vcat(traj_des.θ...)  # concatenated control points
+            # actuator fault (effectiveness)
+            λ = faults_to_effectiveness(faults)
+            # initial condition
+            x0 = df.sol[1].plant.state
+            # cost
+            ts = df.time
+            poss = df.sol |> Map(datum -> datum.plant.state.p) |> collect
+            poss_des = ts |> Map(traj_des) |> collect
+            e_ps = poss .- poss_des
+            if verbose
+                @warn("TODO: there is no desired angular velocity")
+            end
+            e_ωs = ts |> Map(t -> zeros(3)) |> collect
+            J = cost(cf, ts, e_ps, e_ωs)
+            (; x0=x0, λ=λ, _θ=_θ, J=J)
         end
-        e_ωs = ts |> Map(t -> zeros(3)) |> collect
-        J = cost(cf, ts, e_ps, e_ωs)
-        return (; x0=x0, λ=λ, _θ=_θ, J=J)
-    else
-        if verbose
-            @warn("ignored; the file's extension is not .jld2")
-        end
+    catch
+        @warn("Fail to load a file; is the file loadable via JLD2?")
         missing
     end
 end
@@ -80,7 +81,7 @@ end
 function make_a_trainable(data)
     # feature
     features = data |> Map(datum -> vcat(
-                                         # datum.x0,
+                                         datum.x0,
                                          datum.λ,
                                          datum._θ,
                                         )) |> collect
@@ -93,19 +94,19 @@ function make_a_trainable(data)
 end
 
 
-function main(epochs; dir_log="data/debug/adaptive", seed=2021)
+function main(epochs; dir_log="data/hovering/adaptive", seed=2021)
     Random.seed!(seed)
     # load data
     file_paths = readdir(dir_log; join=true)
     @time data = preprocess(file_paths; verbose=false)
     # construct approximator
     n_nt = (;
-            # x=18,
+            x=18,
             λ=6,
             θ=3,
            )  # dimensions
     n = sum(n_nt)  # total dim (feature dimension)
-    n_h = 128  # hidden layer nodes
+    n_h = 256  # hidden layer nodes
     Ĵ = Chain(
               Dense(n, n_h, leakyrelu),
               Dense(n_h, n_h, leakyrelu),

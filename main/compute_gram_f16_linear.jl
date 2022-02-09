@@ -4,7 +4,16 @@ using LinearAlgebra
 using Plots
 
 
+"""
+# Refs
+[1] K. G. Vamvoudakis and F. L. Lewis, “Online actor-critic algorithm to solve the continuous-time infinite horizon optimal control problem,” Automatica, vol. 46, no. 5, pp. 878–888, 2010, doi: 10.1016/j.automatica.2010.02.018.
+
+# Notes
+- x = state vector, [v, alpha, q]^T
+- u = control input vector, [dele]
+"""
 function compute_minHSV(eff)
+    # F16 aircraft longitudinal linear system model [1]
     A = [-1.01887 0.90506 -0.00215;
     0.82225 -1.07741 -0.17555;
     0 0 -1]

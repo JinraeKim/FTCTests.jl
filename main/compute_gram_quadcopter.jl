@@ -4,8 +4,21 @@ using LinearAlgebra
 using Plots
 
 
+"""
+# Refs
+[1] M. Tahavori and A. Hasan, “Fault recoverability for nonlinear systems with application to fault tolerant control of UAVs,” Aerosp. Sci. Technol., vol. 107, p. 106282, 2020, doi: 10.1016/j.ast.2020.106282.
+
+# Notes
+- x = state vector, [eta, omega, v, xi]^T
+    - eta = Euler angle vector, [phi, theta, psi]^T
+    - omega = angular rate vector, [p, q, r]^T
+    - v = velocity vector, [u, v, w]^T
+    - xi = position vector, [x, y, z]^T
+- u = control input vector, thrust vector, [omega_1, omega_2, omega_3, omega_4]^T
+- y = output vector, [eta, omega, xi]^T
+"""
 function compute_minHSV(lambda, num=1)
-    # Quadcopter state space model
+    # Quadcopter state space model [1]
     gc = 9.81
     m = 0.65
     l = 0.023

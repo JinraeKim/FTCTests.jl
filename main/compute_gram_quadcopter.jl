@@ -16,6 +16,16 @@ function Dynamics!(multicopter::IslamQuadcopter)
     end
 end
 
+function test_model()
+    multicopter = IslamQuadcopter()
+    X = State(multicopter)()
+    Λ = diagm(ones(4))
+    u = (multicopter.m * multicopter.g / multicopter.kf) / 4 * ones(4)
+    dX = State(multicopter)()
+    Dynamics!(multicopter)(dX, X, (), 0.0; u=u, Λ=Λ)
+    dX
+end
+
 
 # """
 # # Refs

@@ -2,6 +2,19 @@ using FTCTests
 const FTC = FaultTolerantControl
 using LinearAlgebra
 using Plots
+using UnPack
+using Debugger
+using ReferenceFrameRotations
+
+
+function Dynamics!(multicopter::IslamQuadcopter)
+    @unpack B = multicopter
+    function dynamics!(dx, x, param, t; u)
+        ν = B * u
+        f, M = ν[1], ν[2:4]
+        @nested_log FSimZoo.__Dynamics!(multicopter)(dx, x, (), t; f=f, M=M)
+    end
+end
 
 
 """
@@ -17,7 +30,7 @@ using Plots
 - u = control input vector, thrust vector, [omega_1, omega_2, omega_3, omega_4]^T
 - y = output vector, [eta, omega, xi]^T
 """
-function compute_minHSV(lambda, num=1)
+function compute_minHSV_deprecated(lambda, num=1)
     # Quadcopter state space model [1]
     gc = 9.81
     m = 0.65
@@ -110,17 +123,56 @@ function compute_minHSV(lambda, num=1)
 	minHSV = FTC.min_HSV(Wc, Wo)
 end
 
-function plotting()
-    lambda = range(0, 1, 20)
+function compute_minHSV(lambda, num::Int; dt=0.01, tf=1.0)
+    @assert lambda >= 0.0 && lambda <= 1.0
+    multicopter = IslamQuadcopter()
+    function f(x, u, param, t)
+        p = x[1:3]
+        v = x[4:6]
+        quat = x[7:10]
+        ω = x[11:13]
+        R = quat_to_dcm(Quaternion(quat...))
+        X = State(multicopter)(p, v, R, ω)
+        dX = State(multicopter)()  # initialisation
+        Dynamics!(multicopter)(dX, X, param, t; u=u)
+        dX_quat = dcm_to_quat(DCM(dX.R))
+        dx = [dX.p..., dX.v..., dX_quat.q0, dX_quat.q1, dX_quat.q2, dX_quat.q3, dX.ω...]
+        return dx
+    end
+    g(x, u, p, t) = x[7:10]  # different from [1]
+    n, m, l = 13, 4, 4
+    X0 = State(multicopter)()
+    quat = dcm_to_quat(DCM(X0.R))
+    _quat = [quat.q0, quat.q1, quat.q2, quat.q3]
+    x0 = [X0.p..., X0.v..., _quat..., X0.ω...]
+    u0 = (multicopter.m * multicopter.g / multicopter.kf) / 4 * ones(4)
+    pr = zeros(4, 1)
+
+    Wc = FTC.empirical_gramian(f, g, m, n, l; opt=:c, dt=dt, tf=tf, pr=pr, xs=x0, us=u0)
+    Wo = FTC.empirical_gramian(f, g, m, n, l; opt=:o, dt=dt, tf=tf, pr=pr, xs=x0, us=u0)
+    print(Wc*Wo |> LinearAlgebra.eigvals)
+	minHSV = FTC.min_HSV(Wc, Wo)
+end
+
+function plotting(rotor_idx)
+    lambda = 0:0.10:1 |> collect
     HSVs = []
     for i = 1:length(lambda)
-        HSVs = push!(HSVs, compute_minHSV(collect(lambda)[i], 2))
+        HSVs = push!(HSVs, compute_minHSV(lambda[i], rotor_idx))
     end
-    plot(lambda,
-        HSVs,
-        xlabel = "Actuator effectiveness",
-        ylabel = "Minimum HSVs",
-        label = nothing,
-    )
+    return plot(lambda,
+                HSVs,
+                xlabel = "Actuator effectiveness",
+                ylabel = "Minimum HSVs",
+                label = nothing,
+               )
 end
-nothing
+
+function main()
+    figs = []
+    for rotor_idx in 1:4
+        fig = plotting(rotor_idx)
+        figs = push!(figs, fig)
+    end
+    plot(figs..., layout=(2, 2))
+end

@@ -76,7 +76,7 @@ function compute_minHSV_example(lambda, num::Int; dt=0.01, tf=1.0)
             0 sec(x[2])*sin(x[1]) cos(x[1])*sec(x[2])]
     R(x) = [cos(x[2])*cos(x[3]) sin(x[1])*sin(x[2])*cos(x[3])-cos(x[1])*sin(x[3]) cos(x[1])*sin(x[2])*cos(x[3])+sin(x[1])*sin(x[3]);
             cos(x[2])*sin(x[3]) sin(x[1])*sin(x[2])*sin(x[3])-cos(x[1])*cos(x[3]) cos(x[1])*sin(x[2])*sin(x[3])-sin(x[1])*cos(x[3]);
-            -sin(x[2]) sin(x[1])*cos(x[2]) cos(x[1])*cos(x[2])]'
+            -sin(x[2]) sin(x[1])*cos(x[2]) cos(x[1])*cos(x[2])]
     F(x) = vec([
         T(x) * x[4:6]
         Jinv * cross(-x[4:6], J * x[4:6])
@@ -92,13 +92,13 @@ function compute_minHSV_example(lambda, num::Int; dt=0.01, tf=1.0)
 	l = size(C)[1]
 
     # Initial settings
-    x0 = zeros(n,)
-    u0 = zeros(m,)
+    x0 = zeros(n)
+    u0 = zeros(m)
     pr = zeros(4, 1)
 
     Wc = FTC.empirical_gramian(f, g, m, n, l; opt=:c, dt=dt, tf=tf, pr=pr, xs=x0, us=u0)
     Wo = FTC.empirical_gramian(f, g, m, n, l; opt=:o, dt=dt, tf=tf, pr=pr, xs=x0, us=u0)
-	# minHSV = FTC.min_HSV(Wc, Wo)
+    # minHSV = FTC.min_HSV(Wc, Wo)
     eigvals_Wc = Wc |> LinearAlgebra.eigvals |> minimum |> sqrt
 end
 
@@ -153,17 +153,17 @@ function compute_minHSV_squared(lambda, num::Int; dt=0.01, tf=1.0)
 
     Wc = FTC.empirical_gramian(f, g, m, n, l; opt=:c, dt=dt, tf=tf, pr=pr, xs=x0, us=u0)
     Wo = FTC.empirical_gramian(f, g, m, n, l; opt=:o, dt=dt, tf=tf, pr=pr, xs=x0, us=u0)
-    _eigvals_WcWo = Wc*Wo |> LinearAlgebra.eigvals
-    eigvals_WcWo = []
-    for eigval in _eigvals_WcWo
+    _eigvals_Wc = Wc |> LinearAlgebra.eigvals
+    eigvals_Wc = []
+    for eigval in _eigvals_Wc
         if abs(imag(eigval)) < 1e-6
-            push!(eigvals_WcWo, real(eigval))
+            push!(eigvals_Wc, real(eigval))
         else
             error("Too large imaginary part")
         end
     end
-    min_HSV_squared = eigvals_WcWo |> minimum  # not min_HSV
-	# minHSV = FTC.min_HSV(Wc, Wo)
+    min_HSV_squared = eigvals_Wc |> minimum  # not min_HSV
+    # minHSV = FTC.min_HSV(Wc, Wo)
 end
 
 function plotting(rotor_idx)

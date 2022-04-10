@@ -123,7 +123,7 @@ function test_model()
 end
 
 
-function compute_minHSV_squared(lambda, num::Int; dt=0.01, tf=1.0)
+function compute_minHSV_Islam(lambda, num::Int; dt=0.01, tf=1.0)
     @assert lambda >= 0.0 && lambda <= 1.0
     Λ = diagm(ones(4))
     Λ[num, num] = lambda
@@ -172,7 +172,7 @@ function plotting(rotor_idx)
     HSVs = []
     for i = 1:length(lambda)
         # HSVs = push!(HSVs, compute_minHSV_example(lambda[i], rotor_idx))
-        HSVs = push!(HSVs, compute_minHSV_squared(lambda[i], rotor_idx))
+        HSVs = push!(HSVs, compute_minHSV_Islam(lambda[i], rotor_idx))
     end
     return plot(lambda,
                 HSVs,

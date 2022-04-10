@@ -163,7 +163,7 @@ function compute_minHSV_squared(lambda, num::Int; dt=0.01, tf=1.0)
             error("Too large imaginary part")
         end
     end
-    min_HSV_squared = eigvals_Wc |> minimum  # not min_HSV
+    min_HSV_squared = eigvals_Wc |> minimum |> sqrt # not min_HSV
     # minHSV = FTC.min_HSV(Wc, Wo)
 end
 

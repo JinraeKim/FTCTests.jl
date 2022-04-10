@@ -148,11 +148,12 @@ function compute_minHSV_squared(lambda, num::Int; dt=0.01, tf=1.0)
     quat = dcm_to_quat(DCM(X0.R))
     _quat = [quat.q0, quat.q1, quat.q2, quat.q3]
     x0 = [X0.p..., X0.v..., _quat..., X0.ω...]
-    u0 = (multicopter.m * multicopter.g / multicopter.kf) / 4 * ones(4)
+    # u0 = (multicopter.m * multicopter.g / multicopter.kf) / 4 * ones(4)
+    u0 = zeros(4)
     pr = zeros(4, 1)
 
-    Wc = FTC.empirical_gramian(f, g, m, n, l; opt=:c, dt=dt, tf=tf, pr=pr, xs=x0, us=u0)
-    Wo = FTC.empirical_gramian(f, g, m, n, l; opt=:o, dt=dt, tf=tf, pr=pr, xs=x0, us=u0)
+    Wc = FTC.empirical_gramian(f, g, m, n, l; opt=:c, dt=dt, tf=tf, pr=pr, xs=x0, us=u0, xm=1.0, um=10000.0)
+    Wo = FTC.empirical_gramian(f, g, m, n, l; opt=:o, dt=dt, tf=tf, pr=pr, xs=x0, us=u0, xm=1.0, um=10000.0)
     _eigvals_Wc = Wc |> LinearAlgebra.eigvals
     eigvals_Wc = []
     for eigval in _eigvals_Wc
@@ -170,8 +171,8 @@ function plotting(rotor_idx)
     lambda = 0:0.10:1 |> collect
     HSVs = []
     for i = 1:length(lambda)
-        HSVs = push!(HSVs, compute_minHSV_example(lambda[i], rotor_idx))
-        # HSVs = push!(HSVs, compute_minHSV_squared(lambda[i], rotor_idx))
+        # HSVs = push!(HSVs, compute_minHSV_example(lambda[i], rotor_idx))
+        HSVs = push!(HSVs, compute_minHSV_squared(lambda[i], rotor_idx))
     end
     return plot(lambda,
                 HSVs,

@@ -7,6 +7,27 @@ using Debugger
 using ReferenceFrameRotations
 
 
+function Dynamics!(multicopter::IslamQuadcopter)
+    @unpack B = multicopter
+    function dynamics!(dx, x, param, t; u, Λ)
+        ν = B * Λ * u
+        f, M = ν[1], ν[2:4]
+        @nested_log FSimZoo.__Dynamics!(multicopter)(dx, x, (), t; f=f, M=M)
+    end
+end
+
+
+function test_model()
+    multicopter = IslamQuadcopter()
+    X = State(multicopter)()
+    Λ = diagm(ones(4))
+    u = (multicopter.m * multicopter.g / multicopter.kf) / 4 * ones(4)
+    dX = State(multicopter)()
+    Dynamics!(multicopter)(dX, X, (), 0.0; u=u, Λ=Λ)
+    dX
+end
+
+
 """
 # Refs
 [1] M. Tahavori and A. Hasan, “Fault recoverability for nonlinear systems with application to fault tolerant control of UAVs,” Aerosp. Sci. Technol., vol. 107, p. 106282, 2020, doi: 10.1016/j.ast.2020.106282.
@@ -100,26 +121,6 @@ function compute_minHSV_example(lambda, num::Int; dt=0.01, tf=1.0)
     Wo = FTC.empirical_gramian(f, g, m, n, l; opt=:o, dt=dt, tf=tf, pr=pr, xs=x0, us=u0)
     # minHSV = FTC.min_HSV(Wc, Wo)
     eigvals_Wc = Wc |> LinearAlgebra.eigvals |> minimum |> sqrt
-end
-
-
-function Dynamics!(multicopter::IslamQuadcopter)
-    @unpack B = multicopter
-    function dynamics!(dx, x, param, t; u, Λ)
-        ν = B * Λ * u
-        f, M = ν[1], ν[2:4]
-        @nested_log FSimZoo.__Dynamics!(multicopter)(dx, x, (), t; f=f, M=M)
-    end
-end
-
-function test_model()
-    multicopter = IslamQuadcopter()
-    X = State(multicopter)()
-    Λ = diagm(ones(4))
-    u = (multicopter.m * multicopter.g / multicopter.kf) / 4 * ones(4)
-    dX = State(multicopter)()
-    Dynamics!(multicopter)(dX, X, (), 0.0; u=u, Λ=Λ)
-    dX
 end
 
 

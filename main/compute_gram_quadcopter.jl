@@ -7,27 +7,6 @@ using Debugger
 using ReferenceFrameRotations
 
 
-function Dynamics!(multicopter::IslamQuadcopter)
-    @unpack B = multicopter
-    function dynamics!(dx, x, param, t; u, Λ)
-        ν = B * Λ * u
-        f, M = ν[1], ν[2:4]
-        @nested_log FSimZoo.__Dynamics!(multicopter)(dx, x, (), t; f=f, M=M)
-    end
-end
-
-
-function test_model()
-    multicopter = IslamQuadcopter()
-    X = State(multicopter)()
-    Λ = diagm(ones(4))
-    u = (multicopter.m * multicopter.g / multicopter.kf) / 4 * ones(4)
-    dX = State(multicopter)()
-    Dynamics!(multicopter)(dX, X, (), 0.0; u=u, Λ=Λ)
-    dX
-end
-
-
 """
 # Refs
 [1] M. Tahavori and A. Hasan, “Fault recoverability for nonlinear systems with application to fault tolerant control of UAVs,” Aerosp. Sci. Technol., vol. 107, p. 106282, 2020, doi: 10.1016/j.ast.2020.106282.
@@ -123,57 +102,75 @@ function compute_minHSV_example(lambda, num::Int; dt=0.01, tf=1.0)
     eigvals_Wc = Wc |> LinearAlgebra.eigvals |> minimum |> sqrt
 end
 
+# function Dynamics!(multicopter::IslamQuadcopter)
+#     @unpack B = multicopter
+#     function dynamics!(dx, x, param, t; u, Λ)
+#         ν = B * Λ * u
+#         f, M = ν[1], ν[2:4]
+#         @nested_log FSimZoo.__Dynamics!(multicopter)(dx, x, (), t; f=f, M=M)
+#     end
+# end
 
-function compute_minHSV_Islam(lambda, num::Int; dt=0.01, tf=1.0)
-    @assert lambda >= 0.0 && lambda <= 1.0
-    Λ = diagm(ones(4))
-    Λ[num, num] = lambda
-    @show Λ
-    multicopter = IslamQuadcopter()
-    function f(x, u, param, t)
-        p = x[1:3]
-        v = x[4:6]
-        quat = x[7:10]
-        ω = x[11:13]
-        R = quat_to_dcm(Quaternion(quat...))
-        X = State(multicopter)(p, v, R, ω)
-        dX = State(multicopter)()  # initialisation
-        Dynamics!(multicopter)(dX, X, param, t; u=u, Λ=Λ)
-        dX_quat = dcm_to_quat(DCM(dX.R))
-        dx = [dX.p..., dX.v..., dX_quat.q0, dX_quat.q1, dX_quat.q2, dX_quat.q3, dX.ω...]
-        return dx
-    end
-    g(x, u, p, t) = x[7:10]  # different from [1]
-    n, m, l = 13, 4, 4
-    X0 = State(multicopter)()
-    quat = dcm_to_quat(DCM(X0.R))
-    _quat = [quat.q0, quat.q1, quat.q2, quat.q3]
-    x0 = [X0.p..., X0.v..., _quat..., X0.ω...]
-    # u0 = (multicopter.m * multicopter.g / multicopter.kf) / 4 * ones(4)
-    u0 = zeros(4)
-    pr = zeros(4, 1)
+# function test_model()
+#     multicopter = IslamQuadcopter()
+#     X = State(multicopter)()
+#     Λ = diagm(ones(4))
+#     u = (multicopter.m * multicopter.g / multicopter.kf) / 4 * ones(4)
+#     dX = State(multicopter)()
+#     Dynamics!(multicopter)(dX, X, (), 0.0; u=u, Λ=Λ)
+#     dX
+# end
 
-    Wc = FTC.empirical_gramian(f, g, m, n, l; opt=:c, dt=dt, tf=tf, pr=pr, xs=x0, us=u0, xm=1.0, um=10000.0)
-    Wo = FTC.empirical_gramian(f, g, m, n, l; opt=:o, dt=dt, tf=tf, pr=pr, xs=x0, us=u0, xm=1.0, um=10000.0)
-    _eigvals_Wc = Wc |> LinearAlgebra.eigvals
-    eigvals_Wc = []
-    for eigval in _eigvals_Wc
-        if abs(imag(eigval)) < 1e-6
-            push!(eigvals_Wc, real(eigval))
-        else
-            error("Too large imaginary part")
-        end
-    end
-    min_HSV = eigvals_Wc |> minimum |> sqrt # not min_HSV
-    # minHSV = FTC.min_HSV(Wc, Wo)
-end
+# function compute_minHSV_Islam(lambda, num::Int; dt=0.01, tf=1.0)
+#     @assert lambda >= 0.0 && lambda <= 1.0
+#     Λ = diagm(ones(4))
+#     Λ[num, num] = lambda
+#     @show Λ
+#     multicopter = IslamQuadcopter()
+#     function f(x, u, param, t)
+#         p = x[1:3]
+#         v = x[4:6]
+#         quat = x[7:10]
+#         ω = x[11:13]
+#         R = quat_to_dcm(Quaternion(quat...))
+#         X = State(multicopter)(p, v, R, ω)
+#         dX = State(multicopter)()  # initialisation
+#         Dynamics!(multicopter)(dX, X, param, t; u=u, Λ=Λ)
+#         dX_quat = dcm_to_quat(DCM(dX.R))
+#         dx = [dX.p..., dX.v..., dX_quat.q0, dX_quat.q1, dX_quat.q2, dX_quat.q3, dX.ω...]
+#         return dx
+#     end
+#     g(x, u, p, t) = x[7:10]  # different from [1]
+#     n, m, l = 13, 4, 4
+#     X0 = State(multicopter)()
+#     quat = dcm_to_quat(DCM(X0.R))
+#     _quat = [quat.q0, quat.q1, quat.q2, quat.q3]
+#     x0 = [X0.p..., X0.v..., _quat..., X0.ω...]
+#     # u0 = (multicopter.m * multicopter.g / multicopter.kf) / 4 * ones(4)
+#     u0 = zeros(4)
+#     pr = zeros(4, 1)
+
+#     Wc = FTC.empirical_gramian(f, g, m, n, l; opt=:c, dt=dt, tf=tf, pr=pr, xs=x0, us=u0, xm=1.0, um=10000.0)
+#     Wo = FTC.empirical_gramian(f, g, m, n, l; opt=:o, dt=dt, tf=tf, pr=pr, xs=x0, us=u0, xm=1.0, um=10000.0)
+#     _eigvals_Wc = Wc |> LinearAlgebra.eigvals
+#     eigvals_Wc = []
+#     for eigval in _eigvals_Wc
+#         if abs(imag(eigval)) < 1e-6
+#             push!(eigvals_Wc, real(eigval))
+#         else
+#             error("Too large imaginary part")
+#         end
+#     end
+#     min_HSV = eigvals_Wc |> minimum |> sqrt # not min_HSV
+#     # minHSV = FTC.min_HSV(Wc, Wo)
+# end
 
 function plotting(rotor_idx)
     lambda = 0:0.10:1 |> collect
     HSVs = []
     for i = 1:length(lambda)
-        # HSVs = push!(HSVs, compute_minHSV_example(lambda[i], rotor_idx))
-        HSVs = push!(HSVs, compute_minHSV_Islam(lambda[i], rotor_idx))
+        HSVs = push!(HSVs, compute_minHSV_example(lambda[i], rotor_idx))
+        # HSVs = push!(HSVs, compute_minHSV_Islam(lambda[i], rotor_idx))
     end
     return plot(lambda,
                 HSVs,
